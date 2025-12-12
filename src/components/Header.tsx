@@ -48,8 +48,15 @@ const Header = () => {
         <nav className="flex items-center justify-between h-16 px-4 md:px-0">
           {/* Logo */}
           <a href="#inicio" className="flex items-center gap-3">
-            <Scissors className="w-8 h-8 text-foreground" />
-            <span className="font-display text-xl md:text-2xl font-bold tracking-tight">
+            <img
+              src="/images/Logo.png"
+              alt="Rödelheimer Barber Shop Logo"
+              className="h-16 w-auto"
+            />
+            <span
+              className="text-xl md:text-2xl tracking-widest"
+              style={{ fontFamily: 'Bebas Neue, sans-serif' }}
+            >
               Rödelheimer
             </span>
           </a>

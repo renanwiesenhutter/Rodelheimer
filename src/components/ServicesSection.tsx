@@ -1,12 +1,36 @@
 import { Scissors, Clock } from 'lucide-react';
 
 const services = [
-  { name: 'Haarschnitt', price: '12€', description: 'Corte de cabelo clássico com acabamento profissional' },
-  { name: 'Maschinenschnitt', price: '7€', description: 'Corte com máquina rápido e preciso' },
-  { name: 'Barttrimm', price: '7€', description: 'Aparar e modelar barba' },
-  { name: 'Augenbrauen zupfen', price: '5€', description: 'Design de sobrancelhas' },
-  { name: 'Kurzhaarschnitte für Damen', price: '12€', description: 'Cortes curtos femininos' },
-  { name: 'Mittwoch Rabatt', price: '14€', description: 'Desconto para estudantes até 16 anos (quartas-feiras)' },
+  { 
+    name: 'Maschinenschnitt', 
+    price: '12€', 
+    description: 'Haarschnitt mit der Haarschneidemaschine, schnell und glatt',
+    time: '~30 min'
+  },
+  { 
+    name: 'Bartrasur', 
+    price: '12€', 
+    description: 'Bart trimmen und in Form bringen',
+    time: '~30 min'
+  },
+  { 
+    name: 'Augenbrauen zupfen', 
+    price: '7€', 
+    description: 'Augenbrauen schneiden und formen',
+    time: '~30 min'
+  },
+  { 
+    name: 'Kurzhaarschnitte für Damen', 
+    price: '18€', 
+    description: 'Kurzer Damenhaarschnitt',
+    time: '~30 min'
+  },
+  { 
+    name: 'Schüler bis 16 Jahre', 
+    price: '14€', 
+    description: 'Haarschnitte für Schüler bis 16 Jahre, jeden Mittwoch',
+    time: '~30 min'
+  },
 ];
 
 const ServicesSection = () => {
@@ -16,10 +40,10 @@ const ServicesSection = () => {
         {/* Section Header */}
         <div className="text-center mb-16">
           <p className="text-muted-foreground font-body text-sm tracking-[0.2em] uppercase mb-4">
-            Unsere Leistungen
+            Our Services
           </p>
           <h2 className="font-display text-4xl md:text-5xl font-bold text-foreground mb-4">
-            Serviços
+            Dienstleistungen
           </h2>
           <div className="w-20 h-1 bg-foreground mx-auto" />
         </div>
@@ -51,7 +75,7 @@ const ServicesSection = () => {
               
               <div className="flex items-center gap-2 mt-4 text-muted-foreground text-xs">
                 <Clock className="w-4 h-4" />
-                <span>~20-30 min</span>
+                <span>{service.time}</span>
               </div>
             </div>
           ))}

@@ -5,6 +5,9 @@
 @tailwind components;
 @tailwind utilities;
 
+/* =========================
+   BASE TOKENS
+========================= */
 @layer base {
   :root {
     --background: 0 0% 100%;
@@ -37,14 +40,13 @@
 
     --radius: 0.5rem;
 
-    /* Custom tokens */
+    /* Fonts */
     --font-display: 'Playfair Display', serif;
     --font-body: 'Inter', sans-serif;
-    
+
+    /* Shadows */
     --shadow-soft: 0 4px 20px -4px hsla(0, 0%, 0%, 0.1);
     --shadow-elevated: 0 10px 40px -10px hsla(0, 0%, 0%, 0.15);
-    
-    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   .dark {
@@ -78,17 +80,17 @@
   }
 }
 
+/* =========================
+   BASE RESET
+========================= */
 @layer base {
   * {
     @apply border-border;
   }
 
-  html {
-    scroll-behavior: smooth;
-  }
-
   body {
     @apply bg-background text-foreground font-body antialiased;
+    overflow-x: hidden;
   }
 
   h1, h2, h3, h4, h5, h6 {
@@ -96,6 +98,9 @@
   }
 }
 
+/* =========================
+   COMPONENTS
+========================= */
 @layer components {
   .section-padding {
     @apply py-20 md:py-28 px-4 md:px-8;
@@ -109,34 +114,58 @@
     @apply bg-clip-text text-transparent bg-gradient-to-r from-foreground to-muted-foreground;
   }
 
+  /* Card hover — DESKTOP ONLY */
   .card-hover {
-    @apply transition-all duration-300 hover:shadow-elevated hover:-translate-y-1;
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
+    will-change: transform;
   }
 
-  /* Desabilita o efeito de hover no celular */
-  @media (hover: none) and (pointer: coarse) {
-    .card-hover {
-      @apply transition-none !important;
-      transform: none !important;
-      box-shadow: none !important;
+  @media (hover: hover) and (pointer: fine) {
+    .card-hover:hover {
+      transform: translateY(-4px);
+      box-shadow: var(--shadow-elevated);
     }
   }
 
+  /* Buttons */
   .btn-primary {
-    @apply bg-primary text-primary-foreground hover:bg-primary/90 transition-all duration-300 font-medium;
+    @apply bg-primary text-primary-foreground font-medium;
+    transition: opacity 0.2s ease;
+  }
+
+  .btn-primary:hover {
+    opacity: 0.9;
   }
 
   .btn-outline {
-    @apply border-2 border-primary text-primary hover:bg-primary hover:text-primary-foreground transition-all duration-300 font-medium;
+    @apply border-2 border-primary text-primary font-medium;
+    transition: opacity 0.2s ease;
+  }
+
+  .btn-outline:hover {
+    opacity: 0.9;
   }
 }
 
+/* =========================
+   UTILITIES
+========================= */
 @layer utilities {
   .font-display {
     font-family: var(--font-display);
   }
-  
+
   .font-body {
     font-family: var(--font-body);
+  }
+}
+
+/* =========================
+   MOBILE SAFETY (CRÍTICO)
+========================= */
+@media (hover: none) and (pointer: coarse) {
+  * {
+    animation: none !important;
+    transition: none !important;
   }
 }

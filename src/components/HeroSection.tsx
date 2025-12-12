@@ -41,7 +41,7 @@ const HeroSection = () => {
 
   return (
     <section
-      id="inicio"
+      id="home"
       className="
         relative
         min-h-[calc(var(--vh)*100)]
@@ -116,7 +116,7 @@ const HeroSection = () => {
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button
-              onClick={() => scrollToSection('#agendar')}
+              onClick={() => scrollToSection('#booking')}
               size="lg"
               className="h-14 bg-primary-foreground text-primary hover:bg-primary-foreground/90 px-8 text-lg font-medium"
             >
@@ -124,7 +124,7 @@ const HeroSection = () => {
             </Button>
 
             <Button
-              onClick={() => scrollToSection('#servicos')}
+              onClick={() => scrollToSection('#services')}
               size="lg"
               className="
                 h-14

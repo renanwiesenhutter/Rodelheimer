@@ -11,7 +11,7 @@ const galleryImages = [
 
 const GallerySection = () => {
   return (
-    <section id="galeria" className="section-padding bg-primary">
+    <section id="gallery" className="section-padding bg-primary">
       <div className="container-custom">
         {/* Section Header */}
         <div className="text-center mb-16">

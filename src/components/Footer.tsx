@@ -7,7 +7,7 @@ const Footer = () => {
         <div className="flex flex-col md:flex-row items-center justify-between py-6 gap-4">
           
           {/* Logo */}
-          <a href="#inicio" className="flex items-center gap-3">
+          <a href="#home" className="flex items-center gap-3">
             <img
               src="/images/logo.png"
               alt="Rödelheimer Barber Shop Logo"

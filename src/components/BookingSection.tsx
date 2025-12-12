@@ -132,7 +132,7 @@ const BookingSection = () => {
 
   if (isSuccess) {
     return (
-      <section id="agendar" className="section-padding bg-secondary">
+      <section id="booking" className="section-padding bg-secondary">
         <div className="container-custom max-w-2xl mx-auto text-center">
           <div className="bg-card rounded-2xl p-8 md:p-12 shadow-elevated">
             <div className="w-20 h-20 bg-primary rounded-full flex items-center justify-center mx-auto mb-6">
@@ -157,7 +157,7 @@ const BookingSection = () => {
   }
 
   return (
-    <section id="agendar" className="section-padding bg-secondary">
+    <section id="booking" className="section-padding bg-secondary">
       <div className="container-custom">
         <div className="text-center mb-12">
           <p className="text-muted-foreground font-body text-sm tracking-[0.2em] uppercase mb-4">

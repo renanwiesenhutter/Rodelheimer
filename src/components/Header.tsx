@@ -21,11 +21,11 @@ const Header = () => {
   }, []);
 
   const navLinks = [
-    { href: '#inicio', label: 'Startseite' },
-    { href: '#servicos', label: 'Services' },
-    { href: '#agendar', label: 'Termin buchen' },
-    { href: '#galeria', label: 'Galerie' },
-    { href: '#contato', label: 'Kontakt' },
+    { href: '#home', label: 'Startseite' },
+    { href: '#services', label: 'Services' },
+    { href: '#booking', label: 'Termin buchen' },
+    { href: '#gallery', label: 'Galerie' },
+    { href: '#contact', label: 'Kontakt' },
   ];
 
   const scrollToSection = (href: string) => {
@@ -47,7 +47,7 @@ const Header = () => {
       <div className="container-custom">
         <nav className="flex items-center justify-between h-16 px-4 md:px-0">
           {/* Logo */}
-          <a href="#inicio" className="flex items-center gap-3">
+          <a href="#home" className="flex items-center gap-3">
             <img
               src="/images/logo.png"
               alt="Rödelheimer Barber Shop Logo"
@@ -77,7 +77,7 @@ const Header = () => {
           {/* CTA-Button (verschwindet zusammen mit dem Header) */}
           <div className="hidden md:block">
             <Button
-              onClick={() => scrollToSection('#agendar')}
+              onClick={() => scrollToSection('#booking')}
               className="btn-primary px-6"
             >
               Jetzt Termin buchen
@@ -111,7 +111,7 @@ const Header = () => {
             ))}
             <div className="px-4 pt-4">
               <Button
-                onClick={() => scrollToSection('#agendar')}
+                onClick={() => scrollToSection('#booking')}
                 className="btn-primary w-full"
               >
                 Jetzt Termin buchen

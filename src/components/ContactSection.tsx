@@ -13,7 +13,7 @@ const businessHours = [
 
 const ContactSection = () => {
   return (
-    <section id="contato" className="section-padding bg-background">
+    <section id="contact" className="section-padding bg-background">
       <div className="container-custom">
         {/* Section Header */}
         <div className="text-center mb-16">

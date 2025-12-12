@@ -112,6 +112,15 @@
     @apply transition-all duration-300 hover:shadow-elevated hover:-translate-y-1;
   }
 
+  /* Desabilita o efeito de hover no celular */
+  @media (hover: none) and (pointer: coarse) {
+    .card-hover {
+      @apply transition-none !important;
+      transform: none !important;
+      box-shadow: none !important;
+    }
+  }
+
   .btn-primary {
     @apply bg-primary text-primary-foreground hover:bg-primary/90 transition-all duration-300 font-medium;
   }

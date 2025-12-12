@@ -6,10 +6,20 @@ const Footer = () => {
       <div className="container-custom">
         <div className="flex flex-col md:flex-row items-center justify-between py-6 gap-4">
           
-          {/* Logo / Nome */}
-          <div className="font-display text-lg font-bold tracking-wide">
-            Rödelheimer
-          </div>
+          {/* Logo */}
+          <a href="#inicio" className="flex items-center gap-3">
+            <img
+              src="/favicon.ico"
+              alt="Rödelheimer Barber Shop Logo"
+              className="h-16 w-auto"
+            />
+            <span
+              className="text-xl md:text-2xl tracking-widest"
+              style={{ fontFamily: 'Bebas Neue, sans-serif' }}
+            >
+              Rödelheimer
+            </span>
+          </a>
 
           {/* Copyright */}
           <div className="text-sm text-primary-foreground/70 text-center">

@@ -45,11 +45,11 @@ const HeroSection = () => {
           </p>
 
           <h1
-            className="font-display text-5xl md:text-7xl lg:text-8xl font-bold text-primary-foreground mb-6 animate-fade-in-up"
-            style={{ animationDelay: '0.1s' }}
+            className="text-5xl md:text-7xl lg:text-8xl text-primary-foreground mb-6 animate-fade-in-up tracking-widest"
+            style={{ fontFamily: 'Bebas Neue, sans-serif', animationDelay: '0.1s' }}
           >
             Rödelheimer
-            <span className="block text-3xl md:text-5xl lg:text-6xl font-medium mt-2">
+            <span className="block text-3xl md:text-5xl lg:text-6xl mt-2 tracking-wide">
               Barber Shop
             </span>
           </h1>

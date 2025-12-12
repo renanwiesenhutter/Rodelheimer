@@ -70,7 +70,7 @@ const HeroSection = () => {
             size="lg"
             className="h-14 bg-primary-foreground text-primary hover:bg-primary-foreground/90 px-8 text-lg font-medium"
           >
-            Agendar Corte
+            Termin buchen
           </Button>
 
           <Button
@@ -87,7 +87,7 @@ const HeroSection = () => {
               text-lg font-medium
             "
           >
-            Ver Serviços
+            Services ansehen
           </Button>
           </div>
         </div>

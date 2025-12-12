@@ -40,11 +40,9 @@
 
     --radius: 0.5rem;
 
-    /* Fonts */
     --font-display: 'Playfair Display', serif;
     --font-body: 'Inter', sans-serif;
 
-    /* Shadows */
     --shadow-soft: 0 4px 20px -4px hsla(0, 0%, 0%, 0.1);
     --shadow-elevated: 0 10px 40px -10px hsla(0, 0%, 0%, 0.15);
   }
@@ -52,28 +50,20 @@
   .dark {
     --background: 0 0% 5%;
     --foreground: 0 0% 98%;
-
     --card: 0 0% 8%;
     --card-foreground: 0 0% 98%;
-
     --popover: 0 0% 8%;
     --popover-foreground: 0 0% 98%;
-
     --primary: 0 0% 98%;
     --primary-foreground: 0 0% 5%;
-
     --secondary: 0 0% 15%;
     --secondary-foreground: 0 0% 98%;
-
     --muted: 0 0% 18%;
     --muted-foreground: 0 0% 60%;
-
     --accent: 0 0% 20%;
     --accent-foreground: 0 0% 98%;
-
     --destructive: 0 62% 30%;
     --destructive-foreground: 0 0% 98%;
-
     --border: 0 0% 20%;
     --input: 0 0% 20%;
     --ring: 0 0% 80%;
@@ -81,15 +71,21 @@
 }
 
 /* =========================
-   BASE RESET
+   BASE
 ========================= */
 @layer base {
   * {
     @apply border-border;
   }
 
+  html {
+    scroll-behavior: smooth;
+    height: 100%;
+  }
+
   body {
     @apply bg-background text-foreground font-body antialiased;
+    min-height: 100svh; /* 🔥 trava viewport no Safari */
     overflow-x: hidden;
   }
 
@@ -161,11 +157,10 @@
 }
 
 /* =========================
-   MOBILE SAFETY (CRÍTICO)
+   MOBILE SAFETY (Safari)
 ========================= */
 @media (hover: none) and (pointer: coarse) {
   * {
     animation: none !important;
-    transition: none !important;
   }
 }

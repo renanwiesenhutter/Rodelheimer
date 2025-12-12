@@ -9,12 +9,11 @@ import { format, addDays, isSunday } from 'date-fns';
 import { de } from 'date-fns/locale';
 
 const services = [
-  { name: 'Haarschnitt', price: '12€' },
-  { name: 'Maschinenschnitt', price: '7€' },
-  { name: 'Barttrimm', price: '7€' },
-  { name: 'Augenbrauen zupfen', price: '5€' },
-  { name: 'Kurzhaarschnitte für Damen', price: '12€' },
-  { name: 'Mittwoch Rabatt', price: '14€' },
+  { name: 'Maschinenschnitt', price: '12€' },
+  { name: 'Bartrasur', price: '12€' },
+  { name: 'Augenbrauen zupfen', price: '7€' },
+  { name: 'Kurzhaarschnitte für Damen', price: '18€' },
+  { name: 'Schüler bis 16 Jahre', price: '16€' },
 ];
 
 const timeSlots = [
@@ -86,8 +85,8 @@ const BookingSection = () => {
   const handleSubmit = async () => {
     if (!selectedService || !selectedBarber || !selectedDate || !selectedTime || !name || !phone) {
       toast({
-        title: "Erro",
-        description: "Por favor, preencha todos os campos.",
+        title: "Fehler",
+        description: "Bitte füllen Sie alle Felder aus.",
         variant: "destructive",
       });
       return;
@@ -108,15 +107,15 @@ const BookingSection = () => {
 
     if (error) {
       toast({
-        title: "Erro",
-        description: "Não foi possível agendar. Tente novamente.",
+        title: "Fehler",
+        description: "Termin konnte nicht gebucht werden. Bitte versuchen Sie es erneut.",
         variant: "destructive",
       });
     } else {
       setIsSuccess(true);
       toast({
-        title: "Sucesso!",
-        description: "Seu agendamento foi confirmado.",
+        title: "Erfolg!",
+        description: "Ihr Termin wurde erfolgreich bestätigt.",
       });
     }
   };
@@ -141,16 +140,16 @@ const BookingSection = () => {
               <Check className="w-10 h-10 text-primary-foreground" />
             </div>
             <h2 className="font-display text-3xl font-bold text-foreground mb-4">
-              Agendamento Confirmado!
+              Termin bestätigt!
             </h2>
             <div className="text-muted-foreground space-y-2 mb-8">
-              <p><strong>Serviço:</strong> {selectedService}</p>
-              <p><strong>Barbeiro:</strong> {selectedBarber}</p>
-              <p><strong>Data:</strong> {selectedDate && format(selectedDate, 'dd/MM/yyyy')}</p>
-              <p><strong>Horário:</strong> {selectedTime}</p>
+              <p><strong>Service:</strong> {selectedService}</p>
+              <p><strong>Barbier:</strong> {selectedBarber}</p>
+              <p><strong>Datum:</strong> {selectedDate && format(selectedDate, 'dd.MM.yyyy')}</p>
+              <p><strong>Uhrzeit:</strong> {selectedTime}</p>
             </div>
             <Button onClick={resetForm} className="btn-primary">
-              Novo Agendamento
+              Neuen Termin buchen
             </Button>
           </div>
         </div>
@@ -161,18 +160,16 @@ const BookingSection = () => {
   return (
     <section id="agendar" className="section-padding bg-secondary">
       <div className="container-custom">
-        {/* Section Header */}
         <div className="text-center mb-12">
           <p className="text-muted-foreground font-body text-sm tracking-[0.2em] uppercase mb-4">
-            Termin buchen
+            Book online
           </p>
           <h2 className="font-display text-4xl md:text-5xl font-bold text-foreground mb-4">
-            Agendar Online
+            Online buchen
           </h2>
           <div className="w-20 h-1 bg-foreground mx-auto" />
         </div>
 
-        {/* Progress Steps */}
         <div className="flex justify-center gap-2 mb-10">
           {[1, 2, 3, 4].map((s) => (
             <div
@@ -185,11 +182,10 @@ const BookingSection = () => {
         </div>
 
         <div className="max-w-4xl mx-auto">
-          {/* Step 1: Select Service */}
           {step === 1 && (
             <div className="animate-fade-in">
               <h3 className="font-display text-2xl font-semibold text-center mb-8">
-                Escolha o Serviço
+                Service auswählen
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {services.map((service) => (
@@ -218,17 +214,16 @@ const BookingSection = () => {
             </div>
           )}
 
-          {/* Step 2: Select Barber */}
           {step === 2 && (
             <div className="animate-fade-in">
               <button
                 onClick={() => setStep(1)}
                 className="flex items-center gap-2 text-muted-foreground hover:text-foreground mb-6 transition-colors"
               >
-                <ArrowLeft className="w-4 h-4" /> Voltar
+                <ArrowLeft className="w-4 h-4" /> Zurück
               </button>
               <h3 className="font-display text-2xl font-semibold text-center mb-8">
-                Escolha o Barbeiro
+                Barbier auswählen
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {barbers.map((barber) => (
@@ -254,20 +249,18 @@ const BookingSection = () => {
             </div>
           )}
 
-          {/* Step 3: Select Date and Time */}
           {step === 3 && (
             <div className="animate-fade-in">
               <button
                 onClick={() => setStep(2)}
                 className="flex items-center gap-2 text-muted-foreground hover:text-foreground mb-6 transition-colors"
               >
-                <ArrowLeft className="w-4 h-4" /> Voltar
+                <ArrowLeft className="w-4 h-4" /> Zurück
               </button>
               <h3 className="font-display text-2xl font-semibold text-center mb-8">
-                Escolha Data e Horário
+                Datum und Uhrzeit auswählen
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                {/* Calendar */}
                 <div className="bg-card rounded-lg p-4 border border-border">
                   <Calendar
                     mode="single"
@@ -283,13 +276,12 @@ const BookingSection = () => {
                   />
                 </div>
 
-                {/* Time Slots */}
                 <div>
                   <p className="text-sm text-muted-foreground mb-4 flex items-center gap-2">
                     <CalendarIcon className="w-4 h-4" />
                     {selectedDate 
                       ? format(selectedDate, 'EEEE, dd MMMM yyyy', { locale: de })
-                      : 'Selecione uma data'}
+                      : 'Bitte wählen Sie ein Datum'}
                   </p>
                   {selectedDate && (
                     <div className="grid grid-cols-3 gap-2">
@@ -322,43 +314,41 @@ const BookingSection = () => {
             </div>
           )}
 
-          {/* Step 4: Contact Info */}
           {step === 4 && (
             <div className="animate-fade-in max-w-md mx-auto">
               <button
                 onClick={() => setStep(3)}
                 className="flex items-center gap-2 text-muted-foreground hover:text-foreground mb-6 transition-colors"
               >
-                <ArrowLeft className="w-4 h-4" /> Voltar
+                <ArrowLeft className="w-4 h-4" /> Zurück
               </button>
               <h3 className="font-display text-2xl font-semibold text-center mb-8">
-                Seus Dados
+                Ihre Daten
               </h3>
 
-              {/* Summary */}
               <div className="bg-card rounded-lg p-4 border border-border mb-6">
-                <p className="text-sm text-muted-foreground mb-2">Resumo do agendamento:</p>
-                <p className="font-medium">{selectedService} com {selectedBarber}</p>
+                <p className="text-sm text-muted-foreground mb-2">Zusammenfassung:</p>
+                <p className="font-medium">{selectedService} mit {selectedBarber}</p>
                 <p className="text-sm text-muted-foreground">
-                  {selectedDate && format(selectedDate, 'dd/MM/yyyy')} às {selectedTime}
+                  {selectedDate && format(selectedDate, 'dd.MM.yyyy')} um {selectedTime}
                 </p>
               </div>
 
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium mb-2">Nome</label>
+                  <label className="block text-sm font-medium mb-2">Name</label>
                   <div className="relative">
                     <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                     <Input
                       value={name}
                       onChange={(e) => setName(e.target.value)}
-                      placeholder="Seu nome"
+                      placeholder="Ihr Name"
                       className="pl-10"
                     />
                   </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-2">Telefone</label>
+                  <label className="block text-sm font-medium mb-2">Telefon</label>
                   <div className="relative">
                     <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                     <Input
@@ -374,7 +364,7 @@ const BookingSection = () => {
                   disabled={isLoading || !name || !phone}
                   className="btn-primary w-full mt-6"
                 >
-                  {isLoading ? 'Agendando...' : 'Confirmar Agendamento'}
+                  {isLoading ? 'Wird gebucht...' : 'Termin bestätigen'}
                 </Button>
               </div>
             </div>

@@ -3,43 +3,49 @@ import { Menu, X, Scissors } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 const Header = () => {
-  const [isScrolled, setIsScrolled] = useState(false);
+  const [isAtTop, setIsAtTop] = useState(true);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => {
-      setIsScrolled(window.scrollY > 50);
+      // passe diese Zahl an, wenn es nur ganz oben verschwinden soll
+      setIsAtTop(window.scrollY < 10);
+
+      // optional: wenn wieder ganz oben, mobiles Menü schließen
+      if (window.scrollY < 10) setIsMobileMenuOpen(false);
     };
+
+    handleScroll(); // stellt beim Laden den korrekten Zustand sicher
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
   const navLinks = [
-    { href: '#inicio', label: 'Início' },
-    { href: '#servicos', label: 'Serviços' },
-    { href: '#agendar', label: 'Agendar' },
-    { href: '#galeria', label: 'Galeria' },
-    { href: '#contato', label: 'Contato' },
+    { href: '#inicio', label: 'Startseite' },
+    { href: '#servicos', label: 'Services' },
+    { href: '#agendar', label: 'Termin buchen' },
+    { href: '#galeria', label: 'Galerie' },
+    { href: '#contato', label: 'Kontakt' },
   ];
 
   const scrollToSection = (href: string) => {
     const element = document.querySelector(href);
-    if (element) {
-      element.scrollIntoView({ behavior: 'smooth' });
-    }
+    if (element) element.scrollIntoView({ behavior: 'smooth' });
     setIsMobileMenuOpen(false);
   };
 
+  const isVisible = !isAtTop;
+
   return (
     <header
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-        isScrolled
-          ? 'bg-background/95 backdrop-blur-md shadow-soft'
-          : 'bg-transparent'
-      }`}
+      className={`fixed top-0 left-0 right-0 z-50
+        transition-transform duration-300 ease-in-out
+        ${isVisible ? 'translate-y-0' : '-translate-y-full'}
+        bg-background/95 backdrop-blur-md shadow-soft
+      `}
     >
       <div className="container-custom">
-        <nav className="flex items-center justify-between h-20">
+        <nav className="flex items-center justify-between h-16 px-4 md:px-0">
           {/* Logo */}
           <a href="#inicio" className="flex items-center gap-3">
             <Scissors className="w-8 h-8 text-foreground" />
@@ -48,7 +54,7 @@ const Header = () => {
             </span>
           </a>
 
-          {/* Desktop Navigation */}
+          {/* Desktop-Navigation */}
           <div className="hidden md:flex items-center gap-8">
             {navLinks.map((link) => (
               <button
@@ -61,17 +67,17 @@ const Header = () => {
             ))}
           </div>
 
-          {/* CTA Button */}
+          {/* CTA-Button (verschwindet zusammen mit dem Header) */}
           <div className="hidden md:block">
             <Button
               onClick={() => scrollToSection('#agendar')}
               className="btn-primary px-6"
             >
-              Agendar Agora
+              Jetzt Termin buchen
             </Button>
           </div>
 
-          {/* Mobile Menu Button */}
+          {/* Mobile-Menü-Button */}
           <button
             className="md:hidden p-2"
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
@@ -84,7 +90,7 @@ const Header = () => {
           </button>
         </nav>
 
-        {/* Mobile Menu */}
+        {/* Mobiles Menü */}
         {isMobileMenuOpen && (
           <div className="md:hidden bg-background border-t border-border py-4">
             {navLinks.map((link) => (
@@ -101,7 +107,7 @@ const Header = () => {
                 onClick={() => scrollToSection('#agendar')}
                 className="btn-primary w-full"
               >
-                Agendar Agora
+                Jetzt Termin buchen
               </Button>
             </div>
           </div>

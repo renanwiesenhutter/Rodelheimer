@@ -49,7 +49,7 @@ const Header = () => {
           {/* Logo */}
           <a href="#inicio" className="flex items-center gap-3">
             <img
-              src="/images/testlogo.png"
+              src="/images/logo.png"
               alt="Rödelheimer Barber Shop Logo"
               className="h-11 w-auto"
             />

@@ -1,10 +1,17 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { ChevronDown } from 'lucide-react';
 
 const HeroSection = () => {
-  const [scrollY, setScrollY] = useState(0);
+  const scrollYRef = useRef(0);
+  const ticking = useRef(false);
+
+  const [progress, setProgress] = useState(0);
   const [isAtTop, setIsAtTop] = useState(true);
+
+  const isMobile =
+    typeof window !== 'undefined' &&
+    window.matchMedia('(max-width: 768px)').matches;
 
   const scrollToSection = (href: string) => {
     const element = document.querySelector(href);
@@ -13,18 +20,31 @@ const HeroSection = () => {
     }
   };
 
+  // 🌊 Scroll otimizado (requestAnimationFrame)
   useEffect(() => {
-    const handleScroll = () => {
-      setScrollY(window.scrollY);
-      setIsAtTop(window.scrollY === 0);
+    const onScroll = () => {
+      scrollYRef.current = window.scrollY;
+
+      if (!ticking.current) {
+        window.requestAnimationFrame(() => {
+          const y = scrollYRef.current;
+          const p = Math.min(y / 400, 1);
+
+          setProgress(p);
+          setIsAtTop(y === 0);
+
+          ticking.current = false;
+        });
+
+        ticking.current = true;
+      }
     };
 
-    handleScroll();
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
-  // 🔧 Corrige 100vh no mobile (Android + iOS)
+  // 🔧 Corrige 100vh no mobile
   useEffect(() => {
     const setVh = () => {
       const vh = window.innerHeight * 0.01;
@@ -35,9 +55,6 @@ const HeroSection = () => {
     window.addEventListener('resize', setVh);
     return () => window.removeEventListener('resize', setVh);
   }, []);
-
-  // Normaliza scroll (0 → 1 nos primeiros 400px)
-  const progress = Math.min(scrollY / 400, 1);
 
   return (
     <section
@@ -52,7 +69,7 @@ const HeroSection = () => {
         overflow-hidden
       "
     >
-      {/* Background Image com distorção */}
+      {/* Background Image (mobile safe) */}
       <div
         className="absolute inset-0 will-change-transform"
         style={{
@@ -60,23 +77,25 @@ const HeroSection = () => {
           backgroundSize: 'cover',
           backgroundPosition: 'center',
           transform: `
-            scale(${1 + progress * 0.15})
-            rotate(${progress * 1.5}deg)
+            translate3d(0, 0, 0)
+            scale(${1 + progress * (isMobile ? 0.05 : 0.15)})
+            ${!isMobile ? `rotate(${progress * 1.5}deg)` : ''}
           `,
-          filter: `
-            blur(${progress * 6}px)
-            saturate(${1 + progress * 0.6})
-            contrast(${1 + progress * 0.4})
-          `,
-          transition: 'transform 0.1s linear, filter 0.1s linear',
+          filter: !isMobile
+            ? `
+              blur(${progress * 6}px)
+              saturate(${1 + progress * 0.6})
+              contrast(${1 + progress * 0.4})
+            `
+            : 'none',
         }}
       />
 
-      {/* Riscos diagonais no scroll */}
+      {/* Riscos diagonais */}
       <div
         className="absolute inset-0 pointer-events-none"
         style={{
-          opacity: progress,
+          opacity: isMobile ? 0 : progress,
           backgroundImage: `
             repeating-linear-gradient(
               120deg,
@@ -87,21 +106,19 @@ const HeroSection = () => {
             )
           `,
           mixBlendMode: 'overlay',
-          transition: 'opacity 0.2s linear',
         }}
       />
 
       {/* Overlay escuro */}
       <div className="absolute inset-0 bg-black/60" />
 
-      {/* Hero Content */}
+      {/* Conteúdo */}
       <div className="container-custom relative z-10 text-center px-4">
         <div className="max-w-4xl mx-auto">
           <p className="text-primary-foreground/70 font-body text-sm md:text-base tracking-[0.3em] uppercase mb-6">
             Based in Frankfurt
           </p>
 
-          {/* LOGO */}
           <div className="flex justify-center mb-8">
             <img
               src="/images/logo.png"
@@ -118,7 +135,7 @@ const HeroSection = () => {
             <Button
               onClick={() => scrollToSection('#booking')}
               size="lg"
-              className="h-14 bg-primary-foreground text-primary hover:bg-primary-foreground/90 px-8 text-lg font-medium"
+              className="h-14 bg-primary-foreground text-primary px-8 text-lg font-medium"
             >
               Termin buchen
             </Button>
@@ -143,7 +160,7 @@ const HeroSection = () => {
         </div>
       </div>
 
-      {/* Scroll Indicator */}
+      {/* Indicador de scroll */}
       <div
         className={`absolute bottom-6 left-1/2 -translate-x-1/2 z-20 transition-opacity duration-300 ${
           isAtTop ? 'opacity-100' : 'opacity-0 pointer-events-none'

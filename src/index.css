@@ -87,6 +87,8 @@
     @apply bg-background text-foreground font-body antialiased;
     min-height: 100svh; /* 🔥 trava viewport no Safari */
     overflow-x: hidden;
+    overflow-y: scroll;
+    -webkit-overflow-scrolling: touch;
   }
 
   h1, h2, h3, h4, h5, h6 {

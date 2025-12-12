@@ -61,7 +61,6 @@ const BookingSection = () => {
     const { data, error } = await supabase
       .from('barbers')
       .select('*')
-      .contains('services', [selectedService]);
     
     if (data && !error) {
       setBarbers(data);

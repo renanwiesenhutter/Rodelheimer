@@ -1,4 +1,5 @@
 import { Scissors, Clock } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 const services = [
   { 
@@ -34,8 +35,10 @@ const services = [
 ];
 
 const ServicesSection = () => {
+  const navigate = useNavigate();
+
   return (
-    <section id="services" className="section-padding bg-background">
+    <section id="services" className="section-padding bg-secondary">
       <div className="container-custom">
         {/* Section Header */}
         <div className="text-center mb-16">
@@ -79,6 +82,16 @@ const ServicesSection = () => {
               </div>
             </div>
           ))}
+        </div>
+
+        {/* CTA Button */}
+        <div className="flex justify-center mt-16">
+          <button
+            onClick={() => navigate('/booking')}
+            className="btn-primary px-12 py-6 text-base font-display rounded-sm"
+          >
+            Jetzt Termin buchen
+          </button>
         </div>
       </div>
     </section>

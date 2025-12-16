@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Calendar } from '@/components/ui/calendar';
@@ -61,6 +62,8 @@ const BookingSection = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
 
+  const navigate = useNavigate();
+
   /* =========================
      EFFECTS
   ========================= */
@@ -75,6 +78,13 @@ const BookingSection = () => {
       fetchBookedSlots();
     }
   }, [selectedDate, selectedBarber]);
+
+  useEffect(() => {
+    window.scrollTo({
+      top: 0,
+      behavior: 'instant', // ou 'smooth' se quiser animação
+    });
+  }, []);
 
   /* =========================
      FETCH FUNCTIONS
@@ -189,7 +199,18 @@ const BookingSection = () => {
   return (
     <section id="booking" className="section-padding bg-secondary">
       <div className="container-custom">
-        <div className="text-center mb-12">
+        {/* 🔙 VOLTAR */}
+          <div className="mb-6 mt-[-54px]">
+            <button
+              onClick={() => navigate('/')}
+              className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Zurück
+            </button>
+          </div>
+
+          <div className="text-center mb-12">
           <p className="text-muted-foreground font-body text-sm tracking-[0.2em] uppercase mb-4">
             Book online
           </p>
@@ -214,10 +235,11 @@ const BookingSection = () => {
           {/* STEP 1 */}
           {step === 1 && (
             <div className="animate-fade-in">
-              <h3 className="font-display text-2xl font-semibold text-center mb-8">
+              <h3 className="text-xl font-bold mb-6 text-center">
                 Service auswählen
               </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+              <div className="grid md:grid-cols-2 gap-4">
                 {services.map((service) => (
                   <button
                     key={service.name}
@@ -225,18 +247,15 @@ const BookingSection = () => {
                       setSelectedService(service.name);
                       setStep(2);
                     }}
-                    className={`p-6 rounded-lg border-2 text-left transition-all hover:border-primary ${
-                      selectedService === service.name
-                        ? 'border-primary bg-primary/5'
-                        : 'border-border bg-card'
-                    }`}
+                    className="border p-4 rounded-lg text-left transition hover:border-primary"
                   >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <Scissors className="w-5 h-5 text-muted-foreground" />
-                        <span className="font-medium text-foreground">{service.name}</span>
-                      </div>
-                      <span className="font-display text-xl font-bold">{service.price}</span>
+                    <div className="flex justify-between items-center">
+                      <span className="text-foreground font-medium">
+                        {service.name}
+                      </span>
+                      <strong className="text-foreground">
+                        {service.price}
+                      </strong>
                     </div>
                   </button>
                 ))}

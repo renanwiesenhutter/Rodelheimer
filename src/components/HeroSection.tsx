@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { ChevronDown } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 const HeroSection = () => {
   const rafRef = useRef<number | null>(null);
@@ -49,6 +50,8 @@ const HeroSection = () => {
     };
   }, []);
 
+  const navigate = useNavigate();
+
   return (
     <section
       id="home"
@@ -92,7 +95,7 @@ const HeroSection = () => {
           {/* 🔒 BOTÕES 100% IGUAIS AOS SEUS */}
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button
-              onClick={() => scrollToSection('#booking')}
+              onClick={() => navigate('/booking')}
               size="lg"
               className="h-14 bg-primary-foreground text-primary hover:bg-primary-foreground/70 px-8 text-lg font-medium"
             >

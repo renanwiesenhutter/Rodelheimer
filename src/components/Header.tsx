@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Menu, X, Scissors } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useNavigate } from 'react-router-dom';
 
 const Header = () => {
   const [isAtTop, setIsAtTop] = useState(true);
@@ -20,10 +21,11 @@ const Header = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  const navigate = useNavigate();
+
   const navLinks = [
     { href: '#home', label: 'Startseite' },
     { href: '#services', label: 'Services' },
-    { href: '#booking', label: 'Termin buchen' },
     { href: '#gallery', label: 'Galerie' },
     { href: '#contact', label: 'Kontakt' },
   ];
@@ -77,7 +79,7 @@ const Header = () => {
           {/* CTA-Button (verschwindet zusammen mit dem Header) */}
           <div className="hidden md:block">
             <Button
-              onClick={() => scrollToSection('#booking')}
+              onClick={() => navigate('/booking')}
               className="btn-primary px-6"
             >
               Jetzt Termin buchen
@@ -111,7 +113,7 @@ const Header = () => {
             ))}
             <div className="px-4 pt-4">
               <Button
-                onClick={() => scrollToSection('#booking')}
+                onClick={() => navigate('/booking')}
                 className="btn-primary w-full"
               >
                 Jetzt Termin buchen

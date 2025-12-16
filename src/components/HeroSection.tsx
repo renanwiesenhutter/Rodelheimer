@@ -9,6 +9,17 @@ const HeroSection = () => {
   const [progress, setProgress] = useState(0);
   const [isAtTop, setIsAtTop] = useState(true);
 
+  // ✅ FUNÇÃO QUE FALTAVA
+  const scrollToSection = (selector: string) => {
+    const el = document.querySelector(selector);
+    if (!el) return;
+
+    el.scrollIntoView({
+      behavior: 'smooth',
+      block: 'start',
+    });
+  };
+
   useEffect(() => {
     const onScroll = () => {
       if (rafRef.current) return;
@@ -16,7 +27,6 @@ const HeroSection = () => {
       rafRef.current = requestAnimationFrame(() => {
         const scrollPos = window.scrollY;
 
-        // 🔒 ignora micro variações causadas pela barra do Safari
         if (Math.abs(scrollPos - lastScrollRef.current) < 20) {
           rafRef.current = null;
           return;
@@ -84,7 +94,7 @@ const HeroSection = () => {
             <Button
               onClick={() => scrollToSection('#booking')}
               size="lg"
-              className="h-14 bg-primary-foreground text-primary hover:bg-primary-foreground/90 px-8 text-lg font-medium"
+              className="h-14 bg-primary-foreground text-primary hover:bg-primary-foreground/70 px-8 text-lg font-medium"
             >
               Termin buchen
             </Button>
@@ -115,7 +125,7 @@ const HeroSection = () => {
           isAtTop ? 'opacity-100' : 'opacity-0 pointer-events-none'
         }`}
       >
-        <ChevronDown className="w-8 h-8 text-primary-foreground/50 animate-bounce" />
+        <ChevronDown className="w-8 h-8 text-primary-foreground/50 animate-bounce mb-[-20px]" />
       </div>
     </section>
   );

@@ -1,38 +1,33 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Calendar } from '@/components/ui/calendar';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { Check, ArrowLeft, CalendarIcon, User, Phone, Scissors } from 'lucide-react';
+import { Check, ArrowLeft, CalendarIcon, User, Phone, Clock } from 'lucide-react';
 import { format, isSunday } from 'date-fns';
 import { de } from 'date-fns/locale';
 
 /* =========================
-   SERVICES (CORRIGIDO)
-   - Combinações APENAS entre:
-     Maschinenschnitt
-     Bartrasur
-     Augenbrauen zupfen
-   - Outros são serviços únicos
-   - Valores = soma simples
+   SERVICES + DURATION (slots de 30min)
+   durationSlots = quantidade de slots (30min)
 ========================= */
 const services = [
-  // Einzelservices
-  { name: 'Maschinenschnitt', price: '12€' },
-  { name: 'Bartrasur', price: '12€' },
-  { name: 'Augenbrauen zupfen', price: '7€' },
+  // Einzelservices (30min cada)
+  { name: 'Maschinenschnitt', price: '12€', durationSlots: 1 },
+  { name: 'Bartrasur', price: '12€', durationSlots: 1 },
+  { name: 'Augenbrauen zupfen', price: '7€', durationSlots: 1 },
 
-  // Services únicos (não combinam)
-  { name: 'Kurzhaarschnitte für Damen', price: '18€' },
-  { name: 'Schüler bis 16 Jahre', price: '16€' },
+  // Services únicos (30min cada — ajuste se quiser)
+  { name: 'Kurzhaarschnitte für Damen', price: '18€', durationSlots: 1 },
+  { name: 'Schüler bis 16 Jahre', price: '16€', durationSlots: 1 },
 
-  // Kombinierte Services (nur Schnitt + Bart + Augenbrauen)
-  { name: 'Maschinenschnitt + Bartrasur', price: '24€' },
-  { name: 'Maschinenschnitt + Augenbrauen zupfen', price: '19€' },
-  { name: 'Bartrasur + Augenbrauen zupfen', price: '19€' },
-  { name: 'Maschinenschnitt + Bartrasur + Augenbrauen zupfen', price: '31€' },
+  // Kombinierte Services
+  { name: 'Maschinenschnitt + Bartrasur', price: '24€', durationSlots: 2 },
+  { name: 'Maschinenschnitt + Augenbrauen zupfen', price: '19€', durationSlots: 2 },
+  { name: 'Bartrasur + Augenbrauen zupfen', price: '19€', durationSlots: 2 },
+  { name: 'Maschinenschnitt + Bartrasur + Augenbrauen zupfen', price: '31€', durationSlots: 3 },
 ];
 
 const timeSlots = [
@@ -47,6 +42,16 @@ interface Barber {
   name: string;
   services: string[];
 }
+
+/* =========================
+   HELPERS (slots consecutivos)
+========================= */
+const getRequiredSlots = (startTime: string, durationSlots: number, allSlots: string[]) => {
+  const startIndex = allSlots.indexOf(startTime);
+  if (startIndex === -1) return [];
+  const needed = allSlots.slice(startIndex, startIndex + Math.max(durationSlots, 1));
+  return needed;
+};
 
 const BookingSection = () => {
   const { toast } = useToast();
@@ -63,6 +68,14 @@ const BookingSection = () => {
   const [isSuccess, setIsSuccess] = useState(false);
 
   const navigate = useNavigate();
+
+  const selectedServiceObj = useMemo(
+    () => services.find((s) => s.name === selectedService),
+    [selectedService]
+  );
+
+  const selectedDurationSlots = selectedServiceObj?.durationSlots ?? 1;
+  const selectedDurationMinutes = selectedDurationSlots * 30;
 
   /* =========================
      EFFECTS
@@ -82,7 +95,7 @@ const BookingSection = () => {
   useEffect(() => {
     window.scrollTo({
       top: 0,
-      behavior: 'instant', // ou 'smooth' se quiser animação
+      behavior: 'instant',
     });
   }, []);
 
@@ -102,6 +115,7 @@ const BookingSection = () => {
   const fetchBookedSlots = async () => {
     if (!selectedDate || !selectedBarber) return;
 
+    // IMPORTANTE: sua função get_booked_slots precisa retornar TODOS os slots ocupados (veja o SQL mais abaixo).
     const { data, error } = await supabase.rpc('get_booked_slots', {
       p_barber: selectedBarber,
       p_date: format(selectedDate, 'yyyy-MM-dd'),
@@ -109,6 +123,8 @@ const BookingSection = () => {
 
     if (data && !error) {
       setBookedSlots(data.map((a: { slot_time: string }) => a.slot_time));
+    } else {
+      setBookedSlots([]);
     }
   };
 
@@ -125,13 +141,29 @@ const BookingSection = () => {
       return;
     }
 
+    // Segurança extra: não deixa enviar se os slots necessários já estiverem ocupados.
+    const required = getRequiredSlots(selectedTime, selectedDurationSlots, timeSlots);
+    const doesFitInSchedule = required.length === selectedDurationSlots;
+    const hasConflict = required.some((t) => bookedSlots.includes(t));
+
+    if (!doesFitInSchedule || hasConflict) {
+      toast({
+        title: 'Fehler',
+        description: 'Dieser Zeitraum ist nicht verfügbar. Bitte wählen Sie eine andere Uhrzeit.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setIsLoading(true);
 
+    // Você precisa ter a coluna duration_slots na tabela appointments (int)
     const { error } = await supabase.from('appointments').insert({
       service: selectedService,
       barber: selectedBarber,
       date: format(selectedDate, 'yyyy-MM-dd'),
       time: selectedTime,
+      duration_slots: selectedDurationSlots,
       name,
       phone,
     });
@@ -161,6 +193,7 @@ const BookingSection = () => {
     setSelectedTime('');
     setName('');
     setPhone('');
+    setBookedSlots([]);
     setIsSuccess(false);
   };
 
@@ -180,6 +213,7 @@ const BookingSection = () => {
             </h2>
             <div className="text-muted-foreground space-y-2 mb-8">
               <p><strong>Service:</strong> {selectedService}</p>
+              <p><strong>Dauer:</strong> {selectedDurationMinutes} Min</p>
               <p><strong>Barbier:</strong> {selectedBarber}</p>
               <p><strong>Datum:</strong> {selectedDate && format(selectedDate, 'dd.MM.yyyy')}</p>
               <p><strong>Uhrzeit:</strong> {selectedTime}</p>
@@ -200,17 +234,17 @@ const BookingSection = () => {
     <section id="booking" className="section-padding bg-secondary">
       <div className="container-custom">
         {/* 🔙 VOLTAR */}
-          <div className="mb-6 mt-[-54px]">
-            <button
-              onClick={() => navigate('/')}
-              className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              Zurück
-            </button>
-          </div>
+        <div className="mb-6 mt-[-54px]">
+          <button
+            onClick={() => navigate('/')}
+            className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Zurück
+          </button>
+        </div>
 
-          <div className="text-center mb-12">
+        <div className="text-center mb-12">
           <p className="text-muted-foreground font-body text-sm tracking-[0.2em] uppercase mb-4">
             Book online
           </p>
@@ -245,6 +279,13 @@ const BookingSection = () => {
                     key={service.name}
                     onClick={() => {
                       setSelectedService(service.name);
+
+                      // reset dependências
+                      setSelectedBarber('');
+                      setSelectedDate(undefined);
+                      setSelectedTime('');
+                      setBookedSlots([]);
+
                       setStep(2);
                     }}
                     className="border p-4 rounded-lg text-left transition hover:border-primary"
@@ -256,6 +297,11 @@ const BookingSection = () => {
                       <strong className="text-foreground">
                         {service.price}
                       </strong>
+                    </div>
+
+                    <div className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
+                      <Clock className="w-4 h-4" />
+                      {service.durationSlots * 30} Min
                     </div>
                   </button>
                 ))}
@@ -272,15 +318,23 @@ const BookingSection = () => {
               >
                 <ArrowLeft className="w-4 h-4" /> Zurück
               </button>
+
               <h3 className="font-display text-2xl font-semibold text-center mb-8">
                 Barbier auswählen
               </h3>
+
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {barbers.map((barber) => (
                   <button
                     key={barber.id}
                     onClick={() => {
                       setSelectedBarber(barber.name);
+
+                      // reset dependências
+                      setSelectedDate(undefined);
+                      setSelectedTime('');
+                      setBookedSlots([]);
+
                       setStep(3);
                     }}
                     className={`p-6 rounded-lg border-2 text-center transition-all hover:border-primary ${
@@ -308,15 +362,20 @@ const BookingSection = () => {
               >
                 <ArrowLeft className="w-4 h-4" /> Zurück
               </button>
+
               <h3 className="font-display text-2xl font-semibold text-center mb-8">
                 Datum und Uhrzeit auswählen
               </h3>
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <div className="bg-card rounded-lg p-4 border border-border">
                   <Calendar
                     mode="single"
                     selected={selectedDate}
-                    onSelect={setSelectedDate}
+                    onSelect={(d) => {
+                      setSelectedDate(d);
+                      setSelectedTime('');
+                    }}
                     disabled={(date) => {
                       const today = new Date();
                       today.setHours(0, 0, 0, 0);
@@ -333,31 +392,53 @@ const BookingSection = () => {
                       ? format(selectedDate, 'EEEE, dd MMMM yyyy', { locale: de })
                       : 'Bitte wählen Sie ein Datum'}
                   </p>
+
                   {selectedDate && (
-                    <div className="grid grid-cols-3 gap-2">
-                      {timeSlots.map((time) => {
-                        const isBooked = bookedSlots.includes(time);
-                        return (
-                          <button
-                            key={time}
-                            disabled={isBooked}
-                            onClick={() => {
-                              setSelectedTime(time);
-                              setStep(4);
-                            }}
-                            className={`p-3 rounded-lg border text-sm font-medium transition-all ${
-                              isBooked
-                                ? 'border-border bg-muted text-muted-foreground cursor-not-allowed'
-                                : selectedTime === time
-                                ? 'border-primary bg-primary text-primary-foreground'
-                                : 'border-border bg-card hover:border-primary'
-                            }`}
-                          >
-                            {time}
-                          </button>
-                        );
-                      })}
-                    </div>
+                    <>
+                      <p className="text-xs text-muted-foreground mb-4 flex items-center gap-2">
+                        <Clock className="w-4 h-4" />
+                        Dauer: {selectedDurationMinutes} Min
+                      </p>
+
+                      <div className="grid grid-cols-3 gap-2">
+                        {timeSlots.map((time) => {
+                          const required = getRequiredSlots(time, selectedDurationSlots, timeSlots);
+
+                          // se não couber no fim do expediente, desabilita
+                          const doesFitInSchedule = required.length === selectedDurationSlots;
+
+                          // se qualquer slot necessário estiver ocupado, desabilita
+                          const hasConflict = required.some((t) => bookedSlots.includes(t));
+
+                          const isUnavailable = !doesFitInSchedule || hasConflict;
+
+                          return (
+                            <button
+                              key={time}
+                              disabled={isUnavailable}
+                              onClick={() => {
+                                setSelectedTime(time);
+                                setStep(4);
+                              }}
+                              className={`p-3 rounded-lg border text-sm font-medium transition-all ${
+                                isUnavailable
+                                  ? 'border-border bg-muted text-muted-foreground cursor-not-allowed'
+                                  : selectedTime === time
+                                  ? 'border-primary bg-primary text-primary-foreground'
+                                  : 'border-border bg-card hover:border-primary'
+                              }`}
+                              title={
+                                isUnavailable
+                                  ? 'Nicht verfügbar'
+                                  : `Belegt: ${required.join(' + ')}`
+                              }
+                            >
+                              {time}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </>
                   )}
                 </div>
               </div>
@@ -373,6 +454,7 @@ const BookingSection = () => {
               >
                 <ArrowLeft className="w-4 h-4" /> Zurück
               </button>
+
               <h3 className="font-display text-2xl font-semibold text-center mb-8">
                 Ihre Daten
               </h3>
@@ -380,8 +462,12 @@ const BookingSection = () => {
               <div className="bg-card rounded-lg p-4 border border-border mb-6">
                 <p className="text-sm text-muted-foreground mb-2">Zusammenfassung:</p>
                 <p className="font-medium">{selectedService} mit {selectedBarber}</p>
+                <p className="text-sm text-muted-foreground flex items-center gap-2">
+                  <Clock className="w-4 h-4" />
+                  {selectedDurationMinutes} Min
+                </p>
                 <p className="text-sm text-muted-foreground">
-                  {selectedDate && format(selectedDate, 'dd.MM.yyyy')} um {selectedTime}
+                  {selectedDate && format(selectedDate, 'dd/MM/yyyy')} um {selectedTime}
                 </p>
               </div>
 
@@ -415,7 +501,7 @@ const BookingSection = () => {
                 <Button
                   onClick={handleSubmit}
                   disabled={isLoading || !name || !phone}
-                  className="btn-primary w-full mt-6"
+                  className="btn-primary w-full h-14 mt-6"
                 >
                   {isLoading ? 'Wird gebucht...' : 'Termin bestätigen'}
                 </Button>

@@ -1,43 +1,50 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { ChevronDown } from 'lucide-react';
 
 const HeroSection = () => {
-  const [scrollY, setScrollY] = useState(0);
-  const [isAtTop, setIsAtTop] = useState(true);
-  
-  const [progress, setProgress] = useState(0);
+  const rafRef = useRef<number | null>(null);
+  const lastScrollRef = useRef(0);
 
-  // Evitar reflow contínuo
+  const [progress, setProgress] = useState(0);
+  const [isAtTop, setIsAtTop] = useState(true);
+
   useEffect(() => {
     const onScroll = () => {
-      const scrollPos = window.scrollY;
-      setScrollY(scrollPos);
-      setProgress(Math.min(scrollPos / 400, 1));
-      setIsAtTop(scrollPos === 0);
+      if (rafRef.current) return;
+
+      rafRef.current = requestAnimationFrame(() => {
+        const scrollPos = window.scrollY;
+
+        // 🔒 ignora micro variações causadas pela barra do Safari
+        if (Math.abs(scrollPos - lastScrollRef.current) < 20) {
+          rafRef.current = null;
+          return;
+        }
+
+        lastScrollRef.current = scrollPos;
+
+        const p = Math.min(scrollPos / 400, 1);
+        setProgress(p);
+        setIsAtTop(scrollPos < 10);
+
+        rafRef.current = null;
+      });
     };
 
     window.addEventListener('scroll', onScroll, { passive: true });
-    return () => window.removeEventListener('scroll', onScroll);
-  }, []);
-
-  // 100vh fix no mobile
-  useEffect(() => {
-    const setVh = () => {
-      const vh = window.innerHeight * 0.01;
-      document.documentElement.style.setProperty('--vh', `${vh}px`);
+    return () => {
+      window.removeEventListener('scroll', onScroll);
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
-    setVh();
-    window.addEventListener('resize', setVh);
-    return () => window.removeEventListener('resize', setVh);
   }, []);
 
   return (
     <section
       id="home"
-      className="relative min-h-[calc(var(--vh)*100)] md:min-h-screen flex items-center justify-center overflow-hidden"
+      className="relative min-h-[100svh] flex items-center justify-center overflow-hidden"
     >
-      {/* Background Image otimizado */}
+      {/* Background Image */}
       <div
         className="absolute inset-0 will-change-transform"
         style={{
@@ -45,7 +52,8 @@ const HeroSection = () => {
           backgroundSize: 'cover',
           backgroundPosition: 'center',
           transform: `scale(${1 + progress * 0.15})`,
-          filter: `blur(${progress * 6}px) saturate(${1 + progress * 0.6})`,
+          // ⚠️ blur removido (principal causa do flick)
+          filter: `saturate(${1 + progress * 0.6})`,
         }}
       />
 
@@ -58,6 +66,7 @@ const HeroSection = () => {
           <p className="text-primary-foreground/70 font-body text-sm md:text-base tracking-[0.3em] uppercase mb-6">
             Based in Frankfurt
           </p>
+
           <div className="flex justify-center mb-8">
             <img
               src="/images/logo.png"
@@ -65,10 +74,12 @@ const HeroSection = () => {
               className="w-64 md:w-80 lg:w-96 h-auto"
             />
           </div>
+
           <p className="text-primary-foreground/80 font-body text-lg md:text-xl max-w-2xl mx-auto mb-10">
             Frankfurt’s best cuts — walk-in or book online.
           </p>
 
+          {/* 🔒 BOTÕES 100% IGUAIS AOS SEUS */}
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button
               onClick={() => scrollToSection('#booking')}

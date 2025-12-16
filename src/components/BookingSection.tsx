@@ -5,15 +5,33 @@ import { Calendar } from '@/components/ui/calendar';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Check, ArrowLeft, CalendarIcon, User, Phone, Scissors } from 'lucide-react';
-import { format, addDays, isSunday } from 'date-fns';
+import { format, isSunday } from 'date-fns';
 import { de } from 'date-fns/locale';
 
+/* =========================
+   SERVICES (CORRIGIDO)
+   - Combinações APENAS entre:
+     Maschinenschnitt
+     Bartrasur
+     Augenbrauen zupfen
+   - Outros são serviços únicos
+   - Valores = soma simples
+========================= */
 const services = [
+  // Einzelservices
   { name: 'Maschinenschnitt', price: '12€' },
   { name: 'Bartrasur', price: '12€' },
   { name: 'Augenbrauen zupfen', price: '7€' },
+
+  // Services únicos (não combinam)
   { name: 'Kurzhaarschnitte für Damen', price: '18€' },
   { name: 'Schüler bis 16 Jahre', price: '16€' },
+
+  // Kombinierte Services (nur Schnitt + Bart + Augenbrauen)
+  { name: 'Maschinenschnitt + Bartrasur', price: '24€' },
+  { name: 'Maschinenschnitt + Augenbrauen zupfen', price: '19€' },
+  { name: 'Bartrasur + Augenbrauen zupfen', price: '19€' },
+  { name: 'Maschinenschnitt + Bartrasur + Augenbrauen zupfen', price: '31€' },
 ];
 
 const timeSlots = [
@@ -43,25 +61,29 @@ const BookingSection = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
 
-  // Fetch barbers based on selected service
+  /* =========================
+     EFFECTS
+  ========================= */
   useEffect(() => {
     if (selectedService) {
       fetchBarbers();
     }
   }, [selectedService]);
 
-  // Fetch booked slots when date and barber are selected
   useEffect(() => {
     if (selectedDate && selectedBarber) {
       fetchBookedSlots();
     }
   }, [selectedDate, selectedBarber]);
 
+  /* =========================
+     FETCH FUNCTIONS
+  ========================= */
   const fetchBarbers = async () => {
     const { data, error } = await supabase
       .from('barbers')
-      .select('*')
-    
+      .select('*');
+
     if (data && !error) {
       setBarbers(data);
     }
@@ -69,24 +91,26 @@ const BookingSection = () => {
 
   const fetchBookedSlots = async () => {
     if (!selectedDate || !selectedBarber) return;
-    
-    const { data, error } = await supabase
-      .rpc('get_booked_slots', {
-        p_barber: selectedBarber,
-        p_date: format(selectedDate, 'yyyy-MM-dd')
-      });
-    
+
+    const { data, error } = await supabase.rpc('get_booked_slots', {
+      p_barber: selectedBarber,
+      p_date: format(selectedDate, 'yyyy-MM-dd'),
+    });
+
     if (data && !error) {
       setBookedSlots(data.map((a: { slot_time: string }) => a.slot_time));
     }
   };
 
+  /* =========================
+     SUBMIT
+  ========================= */
   const handleSubmit = async () => {
     if (!selectedService || !selectedBarber || !selectedDate || !selectedTime || !name || !phone) {
       toast({
-        title: "Fehler",
-        description: "Bitte füllen Sie alle Felder aus.",
-        variant: "destructive",
+        title: 'Fehler',
+        description: 'Bitte füllen Sie alle Felder aus.',
+        variant: 'destructive',
       });
       return;
     }
@@ -98,23 +122,23 @@ const BookingSection = () => {
       barber: selectedBarber,
       date: format(selectedDate, 'yyyy-MM-dd'),
       time: selectedTime,
-      name: name,
-      phone: phone,
+      name,
+      phone,
     });
 
     setIsLoading(false);
 
     if (error) {
       toast({
-        title: "Fehler",
-        description: "Termin konnte nicht gebucht werden. Bitte versuchen Sie es erneut.",
-        variant: "destructive",
+        title: 'Fehler',
+        description: 'Termin konnte nicht gebucht werden. Bitte versuchen Sie es erneut.',
+        variant: 'destructive',
       });
     } else {
       setIsSuccess(true);
       toast({
-        title: "Erfolg!",
-        description: "Ihr Termin wurde erfolgreich bestätigt.",
+        title: 'Erfolg!',
+        description: 'Ihr Termin wurde erfolgreich bestätigt.',
       });
     }
   };
@@ -130,6 +154,9 @@ const BookingSection = () => {
     setIsSuccess(false);
   };
 
+  /* =========================
+     SUCCESS SCREEN
+  ========================= */
   if (isSuccess) {
     return (
       <section id="booking" className="section-padding bg-secondary">
@@ -156,6 +183,9 @@ const BookingSection = () => {
     );
   }
 
+  /* =========================
+     MAIN FLOW
+  ========================= */
   return (
     <section id="booking" className="section-padding bg-secondary">
       <div className="container-custom">
@@ -181,6 +211,7 @@ const BookingSection = () => {
         </div>
 
         <div className="max-w-4xl mx-auto">
+          {/* STEP 1 */}
           {step === 1 && (
             <div className="animate-fade-in">
               <h3 className="font-display text-2xl font-semibold text-center mb-8">
@@ -213,6 +244,7 @@ const BookingSection = () => {
             </div>
           )}
 
+          {/* STEP 2 */}
           {step === 2 && (
             <div className="animate-fade-in">
               <button
@@ -248,6 +280,7 @@ const BookingSection = () => {
             </div>
           )}
 
+          {/* STEP 3 */}
           {step === 3 && (
             <div className="animate-fade-in">
               <button
@@ -271,14 +304,13 @@ const BookingSection = () => {
                       return date < today || isSunday(date);
                     }}
                     locale={de}
-                    className="rounded-md"
                   />
                 </div>
 
                 <div>
                   <p className="text-sm text-muted-foreground mb-4 flex items-center gap-2">
                     <CalendarIcon className="w-4 h-4" />
-                    {selectedDate 
+                    {selectedDate
                       ? format(selectedDate, 'EEEE, dd MMMM yyyy', { locale: de })
                       : 'Bitte wählen Sie ein Datum'}
                   </p>
@@ -313,6 +345,7 @@ const BookingSection = () => {
             </div>
           )}
 
+          {/* STEP 4 */}
           {step === 4 && (
             <div className="animate-fade-in max-w-md mx-auto">
               <button
@@ -346,6 +379,7 @@ const BookingSection = () => {
                     />
                   </div>
                 </div>
+
                 <div>
                   <label className="block text-sm font-medium mb-2">Telefon</label>
                   <div className="relative">
@@ -358,6 +392,7 @@ const BookingSection = () => {
                     />
                   </div>
                 </div>
+
                 <Button
                   onClick={handleSubmit}
                   disabled={isLoading || !name || !phone}

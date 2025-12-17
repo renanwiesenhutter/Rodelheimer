@@ -8,18 +8,22 @@ import { useToast } from '@/hooks/use-toast';
 import { Check, ArrowLeft, CalendarIcon, User, Phone, Clock } from 'lucide-react';
 import { format, isSunday } from 'date-fns';
 import { de } from 'date-fns/locale';
+import { toZonedTime, fromZonedTime } from 'date-fns-tz';
+import { parsePhoneNumberFromString } from 'libphonenumber-js';
+
+const SHOP_TZ = 'Europe/Berlin';
 
 /* =========================
    SERVICES + DURATION (slots de 30min)
    durationSlots = quantidade de slots (30min)
 ========================= */
 const services = [
-  // Einzelservices (30min cada)
+  // Einzelservices
   { name: 'Maschinenschnitt', price: '12€', durationSlots: 1 },
   { name: 'Bartrasur', price: '12€', durationSlots: 1 },
   { name: 'Augenbrauen zupfen', price: '7€', durationSlots: 1 },
 
-  // Services únicos (30min cada — ajuste se quiser)
+  // Services únicos (ajuste se quiser)
   { name: 'Kurzhaarschnitte für Damen', price: '18€', durationSlots: 1 },
   { name: 'Schüler bis 16 Jahre', price: '16€', durationSlots: 1 },
 
@@ -44,24 +48,56 @@ interface Barber {
 }
 
 /* =========================
-   HELPERS
+   HELPERS (dates/slots)
 ========================= */
+const pad2 = (n: number) => String(n).padStart(2, '0');
+
+const toDateKey = (d: Date) => {
+  const y = d.getFullYear();
+  const m = pad2(d.getMonth() + 1);
+  const day = pad2(d.getDate());
+  return `${y}-${m}-${day}`;
+};
+
+const getShopTodayKey = () => {
+  const nowInShop = toZonedTime(new Date(), SHOP_TZ);
+  const y = nowInShop.getFullYear();
+  const m = pad2(nowInShop.getMonth() + 1);
+  const d = pad2(nowInShop.getDate());
+  return `${y}-${m}-${d}`;
+};
+
+// converte (dateKey + time) interpretando como horário da barbearia para um instante real (UTC)
+const slotUtcFromKey = (dateKey: string, time: string) => {
+  // string sem timezone: interpretada no TZ da barbearia
+  return fromZonedTime(`${dateKey} ${time}:00`, SHOP_TZ);
+};
+
 const getRequiredSlots = (startTime: string, durationSlots: number, allSlots: string[]) => {
   const startIndex = allSlots.indexOf(startTime);
   if (startIndex === -1) return [];
   return allSlots.slice(startIndex, startIndex + Math.max(durationSlots, 1));
 };
 
-const isSameDay = (a: Date, b: Date) =>
-  a.getFullYear() === b.getFullYear() &&
-  a.getMonth() === b.getMonth() &&
-  a.getDate() === b.getDate();
+/* =========================
+   PHONE HELPERS (libphonenumber-js)
+========================= */
+const parsePhone = (raw: string) => {
+  const v = raw.trim();
+  if (!v) return undefined;
 
-const buildDateTimeFromSlot = (date: Date, time: string) => {
-  const [hh, mm] = time.split(':').map((n) => Number(n));
-  const d = new Date(date);
-  d.setHours(hh, mm, 0, 0);
-  return d;
+  if (v.startsWith('+')) return parsePhoneNumberFromString(v);
+  return parsePhoneNumberFromString(v, 'DE'); // default se não tiver +
+};
+
+const isValidInternationalPhone = (raw: string) => {
+  const pn = parsePhone(raw);
+  return !!pn && pn.isValid();
+};
+
+const toE164 = (raw: string) => {
+  const pn = parsePhone(raw);
+  return pn ? pn.number : raw.trim();
 };
 
 const BookingSection = () => {
@@ -88,6 +124,11 @@ const BookingSection = () => {
   const selectedDurationSlots = selectedServiceObj?.durationSlots ?? 1;
   const selectedDurationMinutes = selectedDurationSlots * 30;
 
+  const selectedDateKey = useMemo(() => {
+    if (!selectedDate) return '';
+    return toDateKey(selectedDate);
+  }, [selectedDate]);
+
   /* =========================
      EFFECTS
   ========================= */
@@ -95,12 +136,14 @@ const BookingSection = () => {
     if (selectedService) {
       fetchBarbers();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedService]);
 
   useEffect(() => {
     if (selectedDate && selectedBarber) {
       fetchBookedSlots();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedDate, selectedBarber]);
 
   useEffect(() => {
@@ -110,16 +153,19 @@ const BookingSection = () => {
     });
   }, []);
 
-  // ✅ Quando chegar no STEP 3, pré-seleciona HOJE (se hoje for válido)
+  // ✅ Quando chegar no STEP 3, pré-seleciona HOJE (no fuso da barbearia)
   useEffect(() => {
     if (step !== 3) return;
     if (selectedDate) return;
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const todayKey = getShopTodayKey();
+    const [yy, mm, dd] = todayKey.split('-').map((x) => Number(x));
 
-    if (!isSunday(today)) {
-      setSelectedDate(today);
+    const todayLocal = new Date(yy, mm - 1, dd);
+    todayLocal.setHours(0, 0, 0, 0);
+
+    if (!isSunday(todayLocal)) {
+      setSelectedDate(todayLocal);
     }
   }, [step, selectedDate]);
 
@@ -127,21 +173,18 @@ const BookingSection = () => {
      FETCH FUNCTIONS
   ========================= */
   const fetchBarbers = async () => {
-    const { data, error } = await supabase
-      .from('barbers')
-      .select('*');
-
-    if (data && !error) {
-      setBarbers(data);
-    }
+    const { data, error } = await supabase.from('barbers').select('*');
+    if (data && !error) setBarbers(data);
   };
 
   const fetchBookedSlots = async () => {
     if (!selectedDate || !selectedBarber) return;
 
+    const dateKey = toDateKey(selectedDate);
+
     const { data, error } = await supabase.rpc('get_booked_slots', {
       p_barber: selectedBarber,
-      p_date: format(selectedDate, 'yyyy-MM-dd'),
+      p_date: dateKey,
     });
 
     if (data && !error) {
@@ -164,14 +207,22 @@ const BookingSection = () => {
       return;
     }
 
+    if (!isValidInternationalPhone(phone)) {
+      toast({
+        title: 'Fehler',
+        description: 'Bitte geben Sie eine gültige Telefonnummer ein.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     const required = getRequiredSlots(selectedTime, selectedDurationSlots, timeSlots);
     const doesFitInSchedule = required.length === selectedDurationSlots;
     const hasConflict = required.some((t) => bookedSlots.includes(t));
 
-    // ✅ impede reservar horário no passado (mesmo que a UI por algum motivo deixasse)
-    const now = new Date();
-    const startDateTime = buildDateTimeFromSlot(selectedDate, selectedTime);
-    const isPastTime = startDateTime.getTime() <= now.getTime();
+    const dateKey = toDateKey(selectedDate);
+    const startUtc = slotUtcFromKey(dateKey, selectedTime);
+    const isPastTime = startUtc.getTime() <= Date.now();
 
     if (!doesFitInSchedule || hasConflict || isPastTime) {
       toast({
@@ -187,11 +238,11 @@ const BookingSection = () => {
     const { error } = await supabase.from('appointments').insert({
       service: selectedService,
       barber: selectedBarber,
-      date: format(selectedDate, 'yyyy-MM-dd'),
+      date: dateKey,
       time: selectedTime,
       duration_slots: selectedDurationSlots,
       name,
-      phone,
+      phone: toE164(phone),
     });
 
     setIsLoading(false);
@@ -284,9 +335,7 @@ const BookingSection = () => {
           {[1, 2, 3, 4].map((s) => (
             <div
               key={s}
-              className={`w-3 h-3 rounded-full transition-all ${
-                step >= s ? 'bg-primary' : 'bg-border'
-              }`}
+              className={`w-3 h-3 rounded-full transition-all ${step >= s ? 'bg-primary' : 'bg-border'}`}
             />
           ))}
         </div>
@@ -309,6 +358,8 @@ const BookingSection = () => {
                       setSelectedDate(undefined);
                       setSelectedTime('');
                       setBookedSlots([]);
+                      setName('');
+                      setPhone('');
                       setStep(2);
                     }}
                     className="border p-4 rounded-lg text-left transition hover:border-primary"
@@ -355,6 +406,8 @@ const BookingSection = () => {
                       setSelectedDate(undefined);
                       setSelectedTime('');
                       setBookedSlots([]);
+                      setName('');
+                      setPhone('');
                       setStep(3);
                     }}
                     className={`p-6 rounded-lg border-2 text-center transition-all hover:border-primary ${
@@ -397,9 +450,9 @@ const BookingSection = () => {
                       setSelectedTime('');
                     }}
                     disabled={(date) => {
-                      const today = new Date();
-                      today.setHours(0, 0, 0, 0);
-                      return date < today || isSunday(date);
+                      const todayKey = getShopTodayKey();
+                      const dateKey = toDateKey(date);
+                      return dateKey < todayKey || isSunday(date);
                     }}
                     locale={de}
                   />
@@ -427,10 +480,9 @@ const BookingSection = () => {
                           const doesFitInSchedule = required.length === selectedDurationSlots;
                           const hasConflict = required.some((t) => bookedSlots.includes(t));
 
-                          // ✅ horários passados não aparecem como disponíveis (somente no dia de hoje)
-                          const now = new Date();
-                          const slotDateTime = buildDateTimeFromSlot(selectedDate, time);
-                          const isPastTime = isSameDay(selectedDate, now) && slotDateTime.getTime() <= now.getTime();
+                          const dateKey = selectedDateKey || toDateKey(selectedDate);
+                          const slotUtc = slotUtcFromKey(dateKey, time);
+                          const isPastTime = slotUtc.getTime() <= Date.now();
 
                           const isUnavailable = !doesFitInSchedule || hasConflict || isPastTime;
 
@@ -498,6 +550,7 @@ const BookingSection = () => {
                       onChange={(e) => setName(e.target.value)}
                       placeholder="Ihr Name"
                       className="pl-10"
+                      autoComplete="name"
                     />
                   </div>
                 </div>
@@ -511,13 +564,21 @@ const BookingSection = () => {
                       onChange={(e) => setPhone(e.target.value)}
                       placeholder="+49 XXX XXXXXXXX"
                       className="pl-10"
+                      inputMode="tel"
+                      autoComplete="tel"
                     />
                   </div>
+
+                  {phone && !isValidInternationalPhone(phone) && (
+                    <p className="text-xs text-destructive mt-2">
+                      Bitte geben Sie eine gültige Telefonnummer ein (mit +Ländercode empfohlen).
+                    </p>
+                  )}
                 </div>
 
                 <Button
                   onClick={handleSubmit}
-                  disabled={isLoading || !name || !phone}
+                  disabled={isLoading || !name.trim() || !isValidInternationalPhone(phone)}
                   className="btn-primary w-full mt-6"
                 >
                   {isLoading ? 'Wird gebucht...' : 'Termin bestätigen'}

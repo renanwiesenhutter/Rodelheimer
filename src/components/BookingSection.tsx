@@ -44,13 +44,24 @@ interface Barber {
 }
 
 /* =========================
-   HELPERS (slots consecutivos)
+   HELPERS
 ========================= */
 const getRequiredSlots = (startTime: string, durationSlots: number, allSlots: string[]) => {
   const startIndex = allSlots.indexOf(startTime);
   if (startIndex === -1) return [];
-  const needed = allSlots.slice(startIndex, startIndex + Math.max(durationSlots, 1));
-  return needed;
+  return allSlots.slice(startIndex, startIndex + Math.max(durationSlots, 1));
+};
+
+const isSameDay = (a: Date, b: Date) =>
+  a.getFullYear() === b.getFullYear() &&
+  a.getMonth() === b.getMonth() &&
+  a.getDate() === b.getDate();
+
+const buildDateTimeFromSlot = (date: Date, time: string) => {
+  const [hh, mm] = time.split(':').map((n) => Number(n));
+  const d = new Date(date);
+  d.setHours(hh, mm, 0, 0);
+  return d;
 };
 
 const BookingSection = () => {
@@ -99,6 +110,19 @@ const BookingSection = () => {
     });
   }, []);
 
+  // ✅ Quando chegar no STEP 3, pré-seleciona HOJE (se hoje for válido)
+  useEffect(() => {
+    if (step !== 3) return;
+    if (selectedDate) return;
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    if (!isSunday(today)) {
+      setSelectedDate(today);
+    }
+  }, [step, selectedDate]);
+
   /* =========================
      FETCH FUNCTIONS
   ========================= */
@@ -115,7 +139,6 @@ const BookingSection = () => {
   const fetchBookedSlots = async () => {
     if (!selectedDate || !selectedBarber) return;
 
-    // IMPORTANTE: sua função get_booked_slots precisa retornar TODOS os slots ocupados (veja o SQL mais abaixo).
     const { data, error } = await supabase.rpc('get_booked_slots', {
       p_barber: selectedBarber,
       p_date: format(selectedDate, 'yyyy-MM-dd'),
@@ -141,12 +164,16 @@ const BookingSection = () => {
       return;
     }
 
-    // Segurança extra: não deixa enviar se os slots necessários já estiverem ocupados.
     const required = getRequiredSlots(selectedTime, selectedDurationSlots, timeSlots);
     const doesFitInSchedule = required.length === selectedDurationSlots;
     const hasConflict = required.some((t) => bookedSlots.includes(t));
 
-    if (!doesFitInSchedule || hasConflict) {
+    // ✅ impede reservar horário no passado (mesmo que a UI por algum motivo deixasse)
+    const now = new Date();
+    const startDateTime = buildDateTimeFromSlot(selectedDate, selectedTime);
+    const isPastTime = startDateTime.getTime() <= now.getTime();
+
+    if (!doesFitInSchedule || hasConflict || isPastTime) {
       toast({
         title: 'Fehler',
         description: 'Dieser Zeitraum ist nicht verfügbar. Bitte wählen Sie eine andere Uhrzeit.',
@@ -157,7 +184,6 @@ const BookingSection = () => {
 
     setIsLoading(true);
 
-    // Você precisa ter a coluna duration_slots na tabela appointments (int)
     const { error } = await supabase.from('appointments').insert({
       service: selectedService,
       barber: selectedBarber,
@@ -279,13 +305,10 @@ const BookingSection = () => {
                     key={service.name}
                     onClick={() => {
                       setSelectedService(service.name);
-
-                      // reset dependências
                       setSelectedBarber('');
                       setSelectedDate(undefined);
                       setSelectedTime('');
                       setBookedSlots([]);
-
                       setStep(2);
                     }}
                     className="border p-4 rounded-lg text-left transition hover:border-primary"
@@ -329,12 +352,9 @@ const BookingSection = () => {
                     key={barber.id}
                     onClick={() => {
                       setSelectedBarber(barber.name);
-
-                      // reset dependências
                       setSelectedDate(undefined);
                       setSelectedTime('');
                       setBookedSlots([]);
-
                       setStep(3);
                     }}
                     className={`p-6 rounded-lg border-2 text-center transition-all hover:border-primary ${
@@ -404,13 +424,15 @@ const BookingSection = () => {
                         {timeSlots.map((time) => {
                           const required = getRequiredSlots(time, selectedDurationSlots, timeSlots);
 
-                          // se não couber no fim do expediente, desabilita
                           const doesFitInSchedule = required.length === selectedDurationSlots;
-
-                          // se qualquer slot necessário estiver ocupado, desabilita
                           const hasConflict = required.some((t) => bookedSlots.includes(t));
 
-                          const isUnavailable = !doesFitInSchedule || hasConflict;
+                          // ✅ horários passados não aparecem como disponíveis (somente no dia de hoje)
+                          const now = new Date();
+                          const slotDateTime = buildDateTimeFromSlot(selectedDate, time);
+                          const isPastTime = isSameDay(selectedDate, now) && slotDateTime.getTime() <= now.getTime();
+
+                          const isUnavailable = !doesFitInSchedule || hasConflict || isPastTime;
 
                           return (
                             <button
@@ -427,11 +449,6 @@ const BookingSection = () => {
                                   ? 'border-primary bg-primary text-primary-foreground'
                                   : 'border-border bg-card hover:border-primary'
                               }`}
-                              title={
-                                isUnavailable
-                                  ? 'Nicht verfügbar'
-                                  : `Belegt: ${required.join(' + ')}`
-                              }
                             >
                               {time}
                             </button>
@@ -467,7 +484,7 @@ const BookingSection = () => {
                   {selectedDurationMinutes} Min
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  {selectedDate && format(selectedDate, 'dd/MM/yyyy')} um {selectedTime}
+                  {selectedDate && format(selectedDate, 'dd.MM.yyyy')} um {selectedTime}
                 </p>
               </div>
 
@@ -501,7 +518,7 @@ const BookingSection = () => {
                 <Button
                   onClick={handleSubmit}
                   disabled={isLoading || !name || !phone}
-                  className="btn-primary w-full h-14 mt-6"
+                  className="btn-primary w-full mt-6"
                 >
                   {isLoading ? 'Wird gebucht...' : 'Termin bestätigen'}
                 </Button>

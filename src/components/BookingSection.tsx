@@ -153,6 +153,9 @@ const BookingSection = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
 
+  // ✅ guarda o ID do agendamento recém-criado para poder cancelar na tela de sucesso
+  const [createdAppointmentId, setCreatedAppointmentId] = useState<string>('');
+
   // manage (my appointments)
   const [managePhone, setManagePhone] = useState('');
   const [manageLoading, setManageLoading] = useState(false);
@@ -325,15 +328,20 @@ const BookingSection = () => {
 
     setIsLoading(true);
 
-    const { error } = await supabase.from('appointments').insert({
-      service: selectedService,
-      barber: selectedBarber,
-      date: dateKey,
-      time: selectedTime,
-      duration_slots: selectedDurationSlots,
-      name: name.trim(),
-      phone: toE164(phone), // ✅ sempre normaliza
-    });
+    const { data, error } = await supabase
+      .from('appointments')
+      .insert({
+        service: selectedService,
+        barber: selectedBarber,
+        date: dateKey,
+        time: selectedTime,
+        duration_slots: selectedDurationSlots,
+        name: name.trim(),
+        phone: toE164(phone), // ✅ sempre normaliza
+        status: 'booked',
+      })
+      .select('id')
+      .single();
 
     setIsLoading(false);
 
@@ -344,6 +352,7 @@ const BookingSection = () => {
         variant: 'destructive',
       });
     } else {
+      setCreatedAppointmentId(data?.id ?? '');
       setIsSuccess(true);
       toast({
         title: 'Erfolg!',
@@ -363,6 +372,7 @@ const BookingSection = () => {
     setSelectedTime('');
     setBookedSlots([]);
     setIsSuccess(false);
+    setCreatedAppointmentId('');
   };
 
   const hardResetAll = () => {
@@ -379,11 +389,58 @@ const BookingSection = () => {
 
     setBookedSlots([]);
     setIsSuccess(false);
+    setCreatedAppointmentId('');
 
     setManagePhone('');
     setMyAppointments([]);
     setHasSearched(false);
     setAutoSearchManage(false);
+  };
+
+  // ✅ cancela o booking recém-criado na tela de sucesso
+  const handleCancelJustCreated = async () => {
+    // se por algum motivo não tiver ID, só volta pra home
+    if (!createdAppointmentId) {
+      resetBookingFlow();
+      navigate('/');
+      return;
+    }
+
+    const phoneE164 = toE164(phone);
+
+    setIsLoading(true);
+
+    const rpc = await supabase.rpc('cancel_appointment', {
+      p_id: createdAppointmentId,
+      p_phone: phoneE164,
+    });
+
+    // fallback: update direto (se RLS permitir)
+    if (rpc.error || rpc.data !== true) {
+      const upd = await supabase
+        .from('appointments')
+        .update({
+          status: 'canceled',
+          canceled_at: new Date().toISOString(),
+        })
+        .match({ id: createdAppointmentId, phone: phoneE164 });
+
+      if (upd.error) {
+        setIsLoading(false);
+        toast({
+          title: 'Fehler',
+          description: 'Stornierung nicht möglich (DB/RLS).',
+          variant: 'destructive',
+        });
+        return;
+      }
+    }
+
+    setIsLoading(false);
+    toast({ title: 'Erfolg!', description: 'Termin wurde storniert.' });
+
+    resetBookingFlow();
+    navigate('/');
   };
 
   /* =========================
@@ -536,7 +593,7 @@ const BookingSection = () => {
               <p><strong>Service:</strong> {selectedService}</p>
               <p><strong>Dauer:</strong> {selectedDurationMinutes} Min</p>
               <p><strong>Barbier:</strong> {selectedBarber}</p>
-              <p><strong>Datum:</strong> {selectedDate && format(selectedDate, 'dd.MM.yyyy')}</p>
+              <p><strong>Datum:</strong> {selectedDate && format(selectedDate, 'dd/MM/yyyy')}</p>
               <p><strong>Uhrzeit:</strong> {selectedTime}</p>
             </div>
 
@@ -545,8 +602,8 @@ const BookingSection = () => {
                 Neuen Termin buchen
               </Button>
 
-              <Button onClick={() => navigate('/')} variant="outline">
-                Abbrechen
+              <Button onClick={handleCancelJustCreated} variant="outline" disabled={isLoading}>
+                {isLoading ? '...' : 'Abbrechen'}
               </Button>
             </div>
           </div>
@@ -664,7 +721,7 @@ const BookingSection = () => {
                   <div className="text-center text-muted-foreground">Lädt...</div>
                 ) : !hasSearched ? (
                   <div className="text-center text-muted-foreground">
-                    Geben Sie Ihre Telefonnummer ein und klicken Sie auf Suchen.
+                    Nutzen Sie Ihre Telefonnummer, um Ihre Termine einzusehen.
                   </div>
                 ) : myAppointments.length === 0 ? (
                   <div className="text-center text-muted-foreground">
@@ -791,7 +848,7 @@ const BookingSection = () => {
                         setMyAppointments([]);
                         setManagePhone(p);
                         setHasSearched(false);
-                        setAutoSearchManage(true); // ✅ auto-busca
+                        setAutoSearchManage(true);
                       }}
                       className="text-sm text-muted-foreground hover:text-foreground transition-colors underline underline-offset-4 mt-2"
                     >

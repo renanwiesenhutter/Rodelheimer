@@ -619,15 +619,17 @@ const BookingSection = () => {
     <section id="booking" className="section-padding bg-secondary">
       <div className="container-custom">
         {/* 🔙 VOLTAR */}
-        <div className="mb-6 mt-[-54px]">
-          <button
-            onClick={() => navigate('/')}
-            className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Zurück
-          </button>
-        </div>
+          {mode === 'booking' && step === 1 && (
+            <div className="mb-6 mt-[-54px]">
+              <button
+                onClick={() => navigate('/')}
+                className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                Zurück
+              </button>
+            </div>
+          )}
 
         <div className="text-center mb-12">
           <p className="text-muted-foreground font-body text-sm tracking-[0.2em] uppercase mb-4">

@@ -441,7 +441,7 @@ const BookingSection = () => {
               </h3>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <div className="bg-card rounded-lg p-4 border border-border">
+                <div className="bg-card rounded-lg p-4 border border-border flex justify-center">
                   <Calendar
                     mode="single"
                     selected={selectedDate}

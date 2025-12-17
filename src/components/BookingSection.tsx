@@ -440,7 +440,7 @@ const BookingSection = () => {
                 Datum und Uhrzeit auswählen
               </h3>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div className="grid grid-cols-1 md:grid-cols-[1.25fr_1fr] gap-8">
                 <div className="bg-card rounded-lg p-4 border border-border flex justify-center">
                   <Calendar
                     mode="single"
@@ -455,6 +455,7 @@ const BookingSection = () => {
                       return dateKey < todayKey || isSunday(date);
                     }}
                     locale={de}
+                    className="origin-top md:scale-[1.10] lg:scale-[1.15]"
                   />
                 </div>
 

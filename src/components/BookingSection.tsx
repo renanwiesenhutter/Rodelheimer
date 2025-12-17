@@ -536,11 +536,11 @@ const BookingSection = () => {
                   {selectedDurationMinutes} Min
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  {selectedDate && format(selectedDate, 'dd.MM.yyyy')} um {selectedTime}
+                  {selectedDate && format(selectedDate, 'dd/MM/yyyy')} um {selectedTime}
                 </p>
               </div>
 
-              <div className="space-y-4">
+              <div className="flex flex-col gap-4">
                 <div>
                   <label className="block text-sm font-medium mb-2">Name</label>
                   <div className="relative">
@@ -579,7 +579,7 @@ const BookingSection = () => {
                 <Button
                   onClick={handleSubmit}
                   disabled={isLoading || !name.trim() || !isValidInternationalPhone(phone)}
-                  className="btn-primary w-full mt-6"
+                  className="btn-primary w-full h-14 mt-4"
                 >
                   {isLoading ? 'Wird gebucht...' : 'Termin bestätigen'}
                 </Button>

@@ -13,21 +13,19 @@ import { parsePhoneNumberFromString } from 'libphonenumber-js';
 
 const SHOP_TZ = 'Europe/Berlin';
 
+// cache simples (24h)
+const BARBERS_CACHE_KEY = 'rhb_barbers_cache_v1';
+const BARBERS_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+
 /* =========================
    SERVICES + DURATION (slots de 30min)
-   durationSlots = quantidade de slots (30min)
 ========================= */
 const services = [
-  // Einzelservices
   { name: 'Maschinenschnitt', price: '12€', durationSlots: 1 },
   { name: 'Bartrasur', price: '12€', durationSlots: 1 },
   { name: 'Augenbrauen zupfen', price: '7€', durationSlots: 1 },
-
-  // Services únicos (ajuste se quiser)
   { name: 'Kurzhaarschnitte für Damen', price: '18€', durationSlots: 1 },
   { name: 'Schüler bis 16 Jahre', price: '16€', durationSlots: 1 },
-
-  // Kombinierte Services
   { name: 'Maschinenschnitt + Bartrasur', price: '24€', durationSlots: 2 },
   { name: 'Maschinenschnitt + Augenbrauen zupfen', price: '19€', durationSlots: 2 },
   { name: 'Bartrasur + Augenbrauen zupfen', price: '19€', durationSlots: 2 },
@@ -44,7 +42,6 @@ const timeSlots = [
 interface Barber {
   id: string;
   name: string;
-  services: string[];
 }
 
 /* =========================
@@ -67,9 +64,7 @@ const getShopTodayKey = () => {
   return `${y}-${m}-${d}`;
 };
 
-// converte (dateKey + time) interpretando como horário da barbearia para um instante real (UTC)
 const slotUtcFromKey = (dateKey: string, time: string) => {
-  // string sem timezone: interpretada no TZ da barbearia
   return fromZonedTime(`${dateKey} ${time}:00`, SHOP_TZ);
 };
 
@@ -87,7 +82,7 @@ const parsePhone = (raw: string) => {
   if (!v) return undefined;
 
   if (v.startsWith('+')) return parsePhoneNumberFromString(v);
-  return parsePhoneNumberFromString(v, 'DE'); // default se não tiver +
+  return parsePhoneNumberFromString(v, 'DE');
 };
 
 const isValidInternationalPhone = (raw: string) => {
@@ -109,7 +104,10 @@ const BookingSection = () => {
   const [selectedTime, setSelectedTime] = useState('');
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
+
   const [barbers, setBarbers] = useState<Barber[]>([]);
+  const [barbersLoading, setBarbersLoading] = useState(false);
+
   const [bookedSlots, setBookedSlots] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
@@ -130,15 +128,71 @@ const BookingSection = () => {
   }, [selectedDate]);
 
   /* =========================
-     EFFECTS
+     PREFETCH BARBERS (uma vez) + CACHE
   ========================= */
-  useEffect(() => {
-    if (selectedService) {
-      fetchBarbers();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedService]);
+  const fetchBarbers = async (opts?: { silent?: boolean }) => {
+    const silent = opts?.silent ?? false;
+    if (!silent) setBarbersLoading(true);
 
+    const { data, error } = await supabase
+      .from('barbers')
+      .select('id,name'); // ✅ mais rápido que select('*')
+
+    if (!silent) setBarbersLoading(false);
+
+    if (error) {
+      // se já tem cache/estado, não precisa estourar toast
+      if (!barbers.length) {
+        toast({
+          title: 'Fehler',
+          description: 'Barbiere konnten nicht geladen werden.',
+          variant: 'destructive',
+        });
+      }
+      return;
+    }
+
+    if (data) {
+      const mapped = data as Barber[];
+      setBarbers(mapped);
+
+      // salva cache
+      try {
+        localStorage.setItem(
+          BARBERS_CACHE_KEY,
+          JSON.stringify({ ts: Date.now(), data: mapped })
+        );
+      } catch {
+        // ignore
+      }
+    }
+  };
+
+  useEffect(() => {
+    // tenta ler cache primeiro (abre instantâneo)
+    try {
+      const raw = localStorage.getItem(BARBERS_CACHE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw) as { ts: number; data: Barber[] };
+        if (parsed?.ts && Array.isArray(parsed.data) && Date.now() - parsed.ts < BARBERS_CACHE_TTL_MS) {
+          setBarbers(parsed.data);
+          // atualiza em background
+          fetchBarbers({ silent: true });
+          return;
+        }
+      }
+    } catch {
+      // ignore
+    }
+
+    // sem cache válido: carrega normal
+    fetchBarbers();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  /* =========================
+     BOOKED SLOTS
+  ========================= */
   useEffect(() => {
     if (selectedDate && selectedBarber) {
       fetchBookedSlots();
@@ -147,10 +201,7 @@ const BookingSection = () => {
   }, [selectedDate, selectedBarber]);
 
   useEffect(() => {
-    window.scrollTo({
-      top: 0,
-      behavior: 'instant',
-    });
+    window.scrollTo({ top: 0, behavior: 'instant' });
   }, []);
 
   // ✅ Quando chegar no STEP 3, pré-seleciona HOJE (no fuso da barbearia)
@@ -168,14 +219,6 @@ const BookingSection = () => {
       setSelectedDate(todayLocal);
     }
   }, [step, selectedDate]);
-
-  /* =========================
-     FETCH FUNCTIONS
-  ========================= */
-  const fetchBarbers = async () => {
-    const { data, error } = await supabase.from('barbers').select('*');
-    if (data && !error) setBarbers(data);
-  };
 
   const fetchBookedSlots = async () => {
     if (!selectedDate || !selectedBarber) return;
@@ -285,9 +328,11 @@ const BookingSection = () => {
             <div className="w-20 h-20 bg-primary rounded-full flex items-center justify-center mx-auto mb-6">
               <Check className="w-10 h-10 text-primary-foreground" />
             </div>
+
             <h2 className="font-display text-3xl font-bold text-foreground mb-4">
               Termin bestätigt!
             </h2>
+
             <div className="text-muted-foreground space-y-2 mb-8">
               <p><strong>Service:</strong> {selectedService}</p>
               <p><strong>Dauer:</strong> {selectedDurationMinutes} Min</p>
@@ -295,9 +340,16 @@ const BookingSection = () => {
               <p><strong>Datum:</strong> {selectedDate && format(selectedDate, 'dd.MM.yyyy')}</p>
               <p><strong>Uhrzeit:</strong> {selectedTime}</p>
             </div>
-            <Button onClick={resetForm} className="btn-primary">
-              Neuen Termin buchen
-            </Button>
+
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <Button onClick={resetForm} className="btn-primary">
+                Neuen Termin buchen
+              </Button>
+
+              <Button onClick={() => navigate('/')} variant="outline">
+                Abbrechen
+              </Button>
+            </div>
           </div>
         </div>
       </section>
@@ -397,32 +449,38 @@ const BookingSection = () => {
                 Barbier auswählen
               </h3>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {barbers.map((barber) => (
-                  <button
-                    key={barber.id}
-                    onClick={() => {
-                      setSelectedBarber(barber.name);
-                      setSelectedDate(undefined);
-                      setSelectedTime('');
-                      setBookedSlots([]);
-                      setName('');
-                      setPhone('');
-                      setStep(3);
-                    }}
-                    className={`p-6 rounded-lg border-2 text-center transition-all hover:border-primary ${
-                      selectedBarber === barber.name
-                        ? 'border-primary bg-primary/5'
-                        : 'border-border bg-card'
-                    }`}
-                  >
-                    <div className="w-16 h-16 bg-primary rounded-full flex items-center justify-center mx-auto mb-4">
-                      <User className="w-8 h-8 text-primary-foreground" />
-                    </div>
-                    <span className="font-display text-lg font-semibold">{barber.name}</span>
-                  </button>
-                ))}
-              </div>
+              {barbersLoading && barbers.length === 0 ? (
+                <div className="text-center text-muted-foreground">
+                  Lädt...
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {barbers.map((barber) => (
+                    <button
+                      key={barber.id}
+                      onClick={() => {
+                        setSelectedBarber(barber.name);
+                        setSelectedDate(undefined);
+                        setSelectedTime('');
+                        setBookedSlots([]);
+                        setName('');
+                        setPhone('');
+                        setStep(3);
+                      }}
+                      className={`p-6 rounded-lg border-2 text-center transition-all hover:border-primary ${
+                        selectedBarber === barber.name
+                          ? 'border-primary bg-primary/5'
+                          : 'border-border bg-card'
+                      }`}
+                    >
+                      <div className="w-16 h-16 bg-primary rounded-full flex items-center justify-center mx-auto mb-4">
+                        <User className="w-8 h-8 text-primary-foreground" />
+                      </div>
+                      <span className="font-display text-lg font-semibold">{barber.name}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
@@ -537,7 +595,7 @@ const BookingSection = () => {
                   {selectedDurationMinutes} Min
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  {selectedDate && format(selectedDate, 'dd/MM/yyyy')} um {selectedTime}
+                  {selectedDate && format(selectedDate, 'dd.MM.yyyy')} um {selectedTime}
                 </p>
               </div>
 

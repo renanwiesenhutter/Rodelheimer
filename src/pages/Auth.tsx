@@ -7,12 +7,13 @@ import { useToast } from '@/hooks/use-toast';
 import { z } from 'zod';
 
 const authSchema = z.object({
-  email: z.string().trim().email({ message: "E-mail inválido" }),
-  password: z.string().min(6, { message: "A senha deve ter pelo menos 6 caracteres" })
+  email: z.string().trim().email({ message: 'E-mail inválido' }),
+  password: z.string().min(6, { message: 'A senha deve ter pelo menos 6 caracteres' }),
 });
 
+const WHATSAPP_LINK = 'https://wa.me/5545991453366?text=Oi!%20N%C3%A3o%20consigo%20fazer%20login%20no%20painel.%20Pode%20me%20ajudar%3F';
+
 const Auth = () => {
-  const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -21,7 +22,7 @@ const Auth = () => {
   const { toast } = useToast();
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user) {
         navigate('/admin');
       }
@@ -53,40 +54,17 @@ const Auth = () => {
 
     setIsLoading(true);
 
-    if (isLogin) {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) {
-        toast({
-          title: "Erro ao entrar",
-          description: error.message === "Invalid login credentials" 
-            ? "E-mail ou senha incorretos" 
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+
+    if (error) {
+      toast({
+        title: 'Erro ao entrar',
+        description:
+          error.message === 'Invalid login credentials'
+            ? 'E-mail ou senha incorretos'
             : error.message,
-          variant: "destructive"
-        });
-      }
-    } else {
-      const { error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          emailRedirectTo: `${window.location.origin}/admin`
-        }
+        variant: 'destructive',
       });
-      if (error) {
-        toast({
-          title: "Erro ao criar conta",
-          description: error.message === "User already registered"
-            ? "Este e-mail já está cadastrado"
-            : error.message,
-          variant: "destructive"
-        });
-      } else {
-        toast({
-          title: "Conta criada!",
-          description: "Você pode fazer login agora.",
-        });
-        setIsLogin(true);
-      }
     }
 
     setIsLoading(false);
@@ -99,8 +77,9 @@ const Auth = () => {
           <h1 className="font-display text-2xl font-bold text-center mb-2">
             Rödelheimer Barber Shop
           </h1>
+
           <p className="text-muted-foreground text-center mb-8">
-            {isLogin ? 'Acesse o painel administrativo' : 'Crie sua conta de administrador'}
+            Acesse o painel administrativo
           </p>
 
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -111,11 +90,13 @@ const Auth = () => {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className={errors.email ? 'border-destructive' : ''}
+                autoComplete="email"
               />
               {errors.email && (
                 <p className="text-destructive text-sm mt-1">{errors.email}</p>
               )}
             </div>
+
             <div>
               <Input
                 type="password"
@@ -123,24 +104,27 @@ const Auth = () => {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className={errors.password ? 'border-destructive' : ''}
+                autoComplete="current-password"
               />
               {errors.password && (
                 <p className="text-destructive text-sm mt-1">{errors.password}</p>
               )}
             </div>
+
             <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? 'Carregando...' : isLogin ? 'Entrar' : 'Criar conta'}
+              {isLoading ? 'Carregando...' : 'Entrar'}
             </Button>
           </form>
 
           <div className="mt-6 text-center">
-            <button
-              type="button"
-              onClick={() => setIsLogin(!isLogin)}
+            <a
+              href={WHATSAPP_LINK}
+              target="_blank"
+              rel="noreferrer"
               className="text-muted-foreground hover:text-foreground text-sm underline"
             >
-              {isLogin ? 'Não tem conta? Criar conta' : 'Já tem conta? Entrar'}
-            </button>
+              Não consigo fazer login
+            </a>
           </div>
         </div>
       </div>

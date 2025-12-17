@@ -104,18 +104,17 @@ const parsePhone = (raw: string) => {
   let v = raw.trim();
   if (!v) return undefined;
 
-  // Se vier "00" (muito comum na Europa), converte para "+"
+  // Europa: muitas pessoas usam 00 em vez de +
   if (v.startsWith('00')) v = `+${v.slice(2)}`;
 
-  // Se já tem +, é internacional -> parse direto
+  // Internacional com + -> parse direto
   if (v.startsWith('+')) return parsePhoneNumberFromString(v);
 
-  // Se começar com 0, trata como número local alemão (ex.: 0151...)
-  if (/^0\d+$/g.test(v)) return parsePhoneNumberFromString(v, 'DE');
+  // Número local alemão (começa com 0)
+  if (/^0\d+$/.test(v)) return parsePhoneNumberFromString(v, 'DE');
 
-  // Se for só dígitos e NÃO começa com 0, assume que é "código do país + número"
-  // ex.: 55... => +55..., 49... => +49...
-  if (/^\d+$/g.test(v)) return parsePhoneNumberFromString(`+${v}`);
+  // Só dígitos (ex: 55... -> assume +55...)
+  if (/^\d+$/.test(v)) return parsePhoneNumberFromString(`+${v}`);
 
   return undefined;
 };
@@ -158,6 +157,8 @@ const BookingSection = () => {
   const [managePhone, setManagePhone] = useState('');
   const [manageLoading, setManageLoading] = useState(false);
   const [myAppointments, setMyAppointments] = useState<AppointmentRow[]>([]);
+  const [hasSearched, setHasSearched] = useState(false);
+  const [autoSearchManage, setAutoSearchManage] = useState(false);
 
   const selectedServiceObj = useMemo(
     () => services.find((s) => s.name === selectedService),
@@ -275,7 +276,7 @@ const BookingSection = () => {
   };
 
   /* =========================
-     BOOKING SUBMIT (agora no Step 5)
+     BOOKING SUBMIT (Step 5)
   ========================= */
   const handleConfirmBooking = async () => {
     if (!name.trim() || !phone.trim()) {
@@ -331,7 +332,7 @@ const BookingSection = () => {
       time: selectedTime,
       duration_slots: selectedDurationSlots,
       name: name.trim(),
-      phone: toE164(phone),
+      phone: toE164(phone), // ✅ sempre normaliza
     });
 
     setIsLoading(false);
@@ -355,7 +356,7 @@ const BookingSection = () => {
     setMode('booking');
     setStep(1);
 
-    // mantém name/phone preenchidos (melhor UX)
+    // mantém name/phone preenchidos
     setSelectedService('');
     setSelectedBarber('');
     setSelectedDate(undefined);
@@ -381,6 +382,8 @@ const BookingSection = () => {
 
     setManagePhone('');
     setMyAppointments([]);
+    setHasSearched(false);
+    setAutoSearchManage(false);
   };
 
   /* =========================
@@ -405,29 +408,33 @@ const BookingSection = () => {
       return;
     }
 
-    const phoneE164 = toE164(managePhone);                 // +5545991453366
-    const phoneDigits = phoneE164.replace(/\D/g, '');      // 5545991453366
+    const phoneE164 = toE164(managePhone);
+    const phoneDigits = phoneE164.replace(/\D/g, '');
+
+    setHasSearched(true);
     setManageLoading(true);
 
+    // tenta com E.164
     const q1 = await supabase
       .from('appointments')
       .select('id, service, barber, date, time, duration_slots, status')
-      .or(`phone.eq.${phoneE164},phone.eq.${phoneDigits}`)
+      .eq('phone', phoneE164)
       .eq('status', 'booked')
       .order('date', { ascending: true })
       .order('time', { ascending: true });
 
-    if (!q1.error && q1.data) {
+    if (!q1.error && q1.data && q1.data.length > 0) {
       setMyAppointments(q1.data as AppointmentRow[]);
       setManageLoading(false);
       return;
     }
 
-    // fallback se status não existir
+    // fallback: sem +
     const q2 = await supabase
       .from('appointments')
-      .select('id, service, barber, date, time, duration_slots')
-      .eq('phone', phoneE164)
+      .select('id, service, barber, date, time, duration_slots, status')
+      .eq('phone', phoneDigits)
+      .eq('status', 'booked')
       .order('date', { ascending: true })
       .order('time', { ascending: true });
 
@@ -445,6 +452,21 @@ const BookingSection = () => {
     setMyAppointments((q2.data ?? []) as AppointmentRow[]);
   };
 
+  // ✅ auto-busca ao entrar no manage com um telefone já preenchido
+  useEffect(() => {
+    if (mode !== 'manage') return;
+    if (!autoSearchManage) return;
+
+    if (!managePhone.trim()) {
+      setAutoSearchManage(false);
+      return;
+    }
+
+    setAutoSearchManage(false);
+    fetchMyAppointments();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, autoSearchManage, managePhone]);
+
   const cancelAppointment = async (appt: AppointmentRow) => {
     if (!isValidInternationalPhone(managePhone)) {
       toast({
@@ -456,7 +478,6 @@ const BookingSection = () => {
     }
 
     const phoneE164 = toE164(managePhone);
-    const phoneDigits = phoneE164.replace(/\D/g, '');
     setManageLoading(true);
 
     const rpc = await supabase.rpc('cancel_appointment', {
@@ -485,8 +506,7 @@ const BookingSection = () => {
     if (upd.error) {
       toast({
         title: 'Fehler',
-        description:
-          'Stornierung nicht möglich (DB/RLS).',
+        description: 'Stornierung nicht möglich (DB/RLS).',
         variant: 'destructive',
       });
       return;
@@ -576,7 +596,7 @@ const BookingSection = () => {
 
         <div className="max-w-4xl mx-auto">
           {/* =========================
-              MODE: MANAGE (Meus agendamentos)
+              MODE: MANAGE
           ========================= */}
           {mode === 'manage' && (
             <div className="animate-fade-in max-w-xl mx-auto">
@@ -628,6 +648,7 @@ const BookingSection = () => {
                     onClick={() => {
                       setManagePhone('');
                       setMyAppointments([]);
+                      setHasSearched(false);
                     }}
                     variant="outline"
                     className="w-auto"
@@ -641,6 +662,10 @@ const BookingSection = () => {
               <div className="mt-8">
                 {manageLoading ? (
                   <div className="text-center text-muted-foreground">Lädt...</div>
+                ) : !hasSearched ? (
+                  <div className="text-center text-muted-foreground">
+                    Geben Sie Ihre Telefonnummer ein und klicken Sie auf Suchen.
+                  </div>
                 ) : myAppointments.length === 0 ? (
                   <div className="text-center text-muted-foreground">
                     Keine Termine gefunden.
@@ -682,12 +707,6 @@ const BookingSection = () => {
                   </div>
                 )}
               </div>
-
-              <div className="mt-8 text-center">
-                <Button onClick={hardResetAll} variant="outline">
-                  Zurück zum Start
-                </Button>
-              </div>
             </div>
           )}
 
@@ -696,7 +715,7 @@ const BookingSection = () => {
           ========================= */}
           {mode === 'booking' && (
             <>
-              {/* STEP 1: Nome + Telefone primeiro */}
+              {/* STEP 1 */}
               {step === 1 && (
                 <div className="animate-fade-in max-w-md mx-auto">
                   <h3 className="font-display text-2xl font-semibold text-center mb-8">
@@ -767,9 +786,12 @@ const BookingSection = () => {
 
                     <button
                       onClick={() => {
+                        const p = phone.trim();
                         setMode('manage');
                         setMyAppointments([]);
-                        setManagePhone(phone || '');
+                        setManagePhone(p);
+                        setHasSearched(false);
+                        setAutoSearchManage(true); // ✅ auto-busca
                       }}
                       className="text-sm text-muted-foreground hover:text-foreground transition-colors underline underline-offset-4 mt-2"
                     >
@@ -779,7 +801,7 @@ const BookingSection = () => {
                 </div>
               )}
 
-              {/* STEP 2: Service */}
+              {/* STEP 2 */}
               {step === 2 && (
                 <div className="animate-fade-in">
                   <button
@@ -826,7 +848,7 @@ const BookingSection = () => {
                 </div>
               )}
 
-              {/* STEP 3: Barbier */}
+              {/* STEP 3 */}
               {step === 3 && (
                 <div className="animate-fade-in">
                   <button
@@ -873,7 +895,7 @@ const BookingSection = () => {
                 </div>
               )}
 
-              {/* STEP 4: Data/Hora (sem confirmar aqui) */}
+              {/* STEP 4 */}
               {step === 4 && (
                 <div className="animate-fade-in">
                   <button
@@ -940,7 +962,7 @@ const BookingSection = () => {
                                   disabled={isUnavailable}
                                   onClick={() => {
                                     setSelectedTime(time);
-                                    setStep(5); // ✅ vai para a tela de confirmação
+                                    setStep(5);
                                   }}
                                   className={`p-3 rounded-lg border text-sm font-medium transition-all ${
                                     isUnavailable
@@ -962,7 +984,7 @@ const BookingSection = () => {
                 </div>
               )}
 
-              {/* STEP 5: Confirmação (igual antes) */}
+              {/* STEP 5 */}
               {step === 5 && (
                 <div className="animate-fade-in max-w-md mx-auto">
                   <button
@@ -984,7 +1006,7 @@ const BookingSection = () => {
                       {selectedDurationMinutes} Min
                     </p>
                     <p className="text-sm text-muted-foreground mt-2">
-                      {selectedDate && format(selectedDate, 'dd.MM.yyyy')} um {selectedTime}
+                      {selectedDate && format(selectedDate, 'dd/MM/yyyy')} um {selectedTime}
                     </p>
                   </div>
 

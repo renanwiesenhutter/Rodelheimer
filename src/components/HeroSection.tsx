@@ -93,32 +93,34 @@ const HeroSection = () => {
           </p>
 
           {/* 🔒 BOTÕES 100% IGUAIS AOS SEUS */}
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button
-              onClick={() => navigate('/booking')}
-              size="lg"
-              className="h-14 bg-primary-foreground text-primary hover:bg-primary-foreground/70 px-8 text-lg font-medium"
-            >
-              Termin buchen
-            </Button>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <Button
+                onClick={() => navigate('/booking')}
+                size="lg"
+                className="
+                  h-14 bg-primary-foreground text-primary px-8 text-lg font-medium
+                  hover:bg-primary-foreground active:bg-primary-foreground
+                  [@media(hover:hover)]:hover:bg-primary-foreground/70
+                "
+              >
+                Termin buchen
+              </Button>
 
-            <Button
-              onClick={() => scrollToSection('#services')}
-              size="lg"
-              className="
-                h-14
-                bg-transparent
-                border-2 border-primary-foreground
-                text-primary-foreground
-                hover:bg-primary-foreground
-                hover:text-primary
-                px-8
-                text-lg font-medium
-              "
-            >
-              Services ansehen
-            </Button>
-          </div>
+              <Button
+                onClick={() => scrollToSection('#services')}
+                size="lg"
+                className="
+                  h-14 bg-transparent border-2 border-primary-foreground text-primary-foreground
+                  px-8 text-lg font-medium
+                  hover:bg-transparent hover:text-primary-foreground
+                  active:bg-transparent active:text-primary-foreground
+                  [@media(hover:hover)]:hover:bg-primary-foreground
+                  [@media(hover:hover)]:hover:text-primary
+                "
+              >
+                Services ansehen
+              </Button>
+            </div>
         </div>
       </div>
 

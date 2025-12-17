@@ -886,7 +886,14 @@ const BookingSection = () => {
                           setBookedSlots([]);
                           setStep(3);
                         }}
-                        className="border p-4 rounded-lg text-left transition hover:border-primary"
+                        className="
+                        border border-border p-4 rounded-lg text-left
+                        transition-colors md:transition-all
+                        md:hover:border-primary
+
+                        active:border-primary active:bg-primary/5
+                        touch-manipulation
+                      "
                       >
                         <div className="flex justify-between items-center">
                           <span className="text-foreground font-medium">
@@ -930,18 +937,20 @@ const BookingSection = () => {
                       {barbers.map((barber) => (
                         <button
                           key={barber.id}
-                          onClick={() => {
+                          onClick={(e) => {
+                            (e.currentTarget as HTMLButtonElement).blur();
                             setSelectedBarber(barber.name);
                             setSelectedDate(undefined);
                             setSelectedTime('');
                             setBookedSlots([]);
                             setStep(4);
                           }}
-                          className={`p-6 rounded-lg border-2 text-center transition-all hover:border-primary ${
-                            selectedBarber === barber.name
-                              ? 'border-primary bg-primary/5'
-                              : 'border-border bg-card'
-                          }`}
+                          className={`
+                            p-6 rounded-lg border-2 text-center
+                            md:transition-all md:hover:border-primary
+                            ${selectedBarber === barber.name ? '' : 'active:border-primary active:bg-primary/5'}
+                            ${selectedBarber === barber.name ? 'border-primary bg-primary/5' : 'border-border bg-card'}
+                          `}
                         >
                           <div className="w-16 h-16 bg-primary rounded-full flex items-center justify-center mx-auto mb-4">
                             <User className="w-8 h-8 text-primary-foreground" />
@@ -1028,7 +1037,9 @@ const BookingSection = () => {
                                       ? 'border-border bg-muted text-muted-foreground cursor-not-allowed'
                                       : selectedTime === time
                                       ? 'border-primary bg-primary text-primary-foreground'
-                                      : 'border-border bg-card hover:border-primary'
+                                      : `border-border bg-card
+                                        md:hover:border-primary
+                                        active:border-primary active:bg-primary/5`
                                   }`}
                                 >
                                   {time}

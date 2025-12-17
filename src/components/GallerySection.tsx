@@ -1,8 +1,8 @@
 import { useState } from 'react';
 
 const galleryImages = [
-  { id: 1, src: '/images/Gallery-1.jpg', alt: 'Classic haircut' },
-  { id: 2, src: '/images/Gallery-4.jpg', alt: 'Beard trim' },
+  { id: 1, src: '/images/Gallery-4.jpg', alt: 'Classic haircut' },
+  { id: 2, src: '/images/Gallery-1.jpg', alt: 'Beard trim' },
   { id: 3, src: '/images/Gallery-3.jpg', alt: 'Fade haircut' },
   { id: 4, src: '/images/Gallery-2.jpg', alt: 'Barbershop interior' },
   { id: 5, src: '/images/Gallery-5.jpg', alt: 'Styling' },

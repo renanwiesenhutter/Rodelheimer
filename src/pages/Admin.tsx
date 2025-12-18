@@ -579,25 +579,6 @@ const Admin = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Top Bar */}
-      <div className="border-b border-border bg-card">
-        <div className="container-custom py-4 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" asChild>
-              <Link to="/">
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Voltar
-              </Link>
-            </Button>
-          </div>
-
-          <Button variant="outline" size="sm" onClick={handleLogout}>
-            <LogOut className="w-4 h-4 mr-2" />
-            Sair
-          </Button>
-        </div>
-      </div>
-
       {/* Main */}
       <main className="section-padding bg-secondary">
         <div className="container-custom">

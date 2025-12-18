@@ -803,12 +803,9 @@ const Admin = () => {
           >
             <div className="min-h-[100dvh] flex items-start justify-center p-4 sm:p-6">
               <div className="w-full max-w-3xl bg-card border border-border rounded-2xl shadow-lg overflow-hidden">
-                <div className="p-6 border-b border-border flex items-start sm:items-center justify-between gap-4">
+                <div className="px-6 py-4 border-b border-border flex items-center justify-between">
                   <div className="min-w-0">
                     <h3 className="font-display text-xl font-semibold">Editar agendamento</h3>
-                    <p className="text-sm text-muted-foreground break-all">
-                      ID: <span className="font-mono">{editing.id}</span>
-                    </p>
                   </div>
 
                   <Button variant="ghost" size="icon" onClick={closeEdit} title="Fechar">
@@ -823,7 +820,7 @@ const Admin = () => {
                       <select
                         value={editService}
                         onChange={(e) => setEditService(e.target.value)}
-                        className="w-full h-11 rounded-md border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                        className="w-full h-11 pl-2 rounded-md border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                       >
                         <option value="" disabled>
                           Selecione...
@@ -841,7 +838,7 @@ const Admin = () => {
                       <select
                         value={editBarber}
                         onChange={(e) => setEditBarber(e.target.value)}
-                        className="w-full h-11 rounded-md border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                        className="w-full h-11 pl-2 rounded-md border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                       >
                         <option value="" disabled>
                           Selecione...
@@ -859,7 +856,7 @@ const Admin = () => {
                       <select
                         value={editTime}
                         onChange={(e) => setEditTime(e.target.value)}
-                        className="w-full h-11 rounded-md border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                        className="w-full h-11 pl-2 rounded-md border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                       >
                         <option value="" disabled>
                           Selecione...
@@ -890,7 +887,7 @@ const Admin = () => {
                   <div className="space-y-3">
                     <p className="text-sm text-muted-foreground">Data</p>
                     <div className="bg-background border border-border rounded-lg p-3 flex justify-center overflow-x-auto">
-                      <div className="w-full max-w-[360px]">
+                      <div className="w-fit mx-auto">
                         <Calendar
                           mode="single"
                           selected={editDate}
@@ -902,7 +899,7 @@ const Admin = () => {
                       </div>
                     </div>
 
-                    <div className="mt-4 text-xs text-muted-foreground flex items-start gap-2">
+                    <div className="mt-4 text-xs text-muted-foreground flex items-start gap-2 justify-center">
                       <CalendarIcon className="w-4 h-4 mt-0.5 shrink-0" />
                       <span className="leading-relaxed">
                         {editDate

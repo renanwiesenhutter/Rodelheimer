@@ -261,21 +261,52 @@ const BookingSection = () => {
     }
   }, [mode, step, selectedDate]);
 
+  useEffect(() => {
+    if (mode !== 'booking') return;
+    if (!selectedTime) return;
+
+    const required = getRequiredSlots(selectedTime, selectedDurationSlots, timeSlots);
+    const conflict = required.some((t) => bookedSlots.includes(t));
+
+    if (conflict) {
+      setSelectedTime('');
+    }
+  }, [mode, bookedSlots, selectedTime, selectedDurationSlots]);
+
   const fetchBookedSlots = async () => {
     if (!selectedDate || !selectedBarber) return;
 
     const dateKey = toDateKey(selectedDate);
 
-    const { data, error } = await supabase.rpc('get_booked_slots', {
-      p_barber: selectedBarber,
-      p_date: dateKey,
+    const { data, error } = await supabase
+      .from('appointments')
+      .select('time, duration_slots, status')
+      .eq('barber', selectedBarber)
+      .eq('date', dateKey)
+      // pega booked + blocked + null (null = booked no teu app)
+      .or('status.eq.booked,status.eq.blocked,status.is.null');
+
+    if (error) {
+      setBookedSlots([]);
+      return;
+    }
+
+    const occ = new Set<string>();
+
+    (data ?? []).forEach((a: any) => {
+      const st = (a.status ?? 'booked') as string;
+      if (st === 'canceled') return;
+
+      const slots = getRequiredSlots(
+        a.time,
+        Math.max(1, a.duration_slots ?? 1),
+        timeSlots
+      );
+
+      slots.forEach((t) => occ.add(t));
     });
 
-    if (data && !error) {
-      setBookedSlots(data.map((a: { slot_time: string }) => a.slot_time));
-    } else {
-      setBookedSlots([]);
-    }
+    setBookedSlots(Array.from(occ));
   };
 
   /* =========================

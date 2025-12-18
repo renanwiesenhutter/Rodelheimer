@@ -6,7 +6,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import type { Session, User as SupabaseUser } from '@supabase/supabase-js';
-import { ArrowLeft, CalendarIcon, LogOut, Pencil, Phone, Scissors, User, X } from 'lucide-react';
+import { ArrowLeft, CalendarIcon, LogOut, Pencil, Phone, Scissors, User, ChevronDown, X } from 'lucide-react';
 import { format, isSunday } from 'date-fns';
 import { de } from 'date-fns/locale';
 
@@ -602,15 +602,16 @@ const Admin = () => {
                     <p className="text-xs text-center tracking-[0.18em] uppercase text-muted-foreground mb-2">
                       Barbier auswählen
                     </p>
-
                     <div className="relative">
-                      <User className="w-4 h-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
+                      <User className="w-4 h-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
 
                       <select
                         value={selectedBarber}
                         onChange={(e) => setSelectedBarber(e.target.value)}
                         disabled={barbersLoading}
-                        className="w-full h-11 rounded-xl border border-border bg-background text-foreground pl-9 pr-12 focus:outline-none focus:ring-2 focus:ring-primary"
+                        className="w-full h-11 rounded-xl border border-border bg-background text-foreground
+                                  appearance-none pl-10 pr-10
+                                  focus:outline-none focus:ring-2 focus:ring-primary"
                       >
                         {barbersLoading && <option value="">Carregando...</option>}
                         {!barbersLoading && barbers.length === 0 && <option value="">Nenhum barbeiro</option>}
@@ -620,6 +621,8 @@ const Admin = () => {
                           </option>
                         ))}
                       </select>
+
+                      <ChevronDown className="w-4 h-4 text-muted-foreground absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                     </div>
                   </div>
                 </div>

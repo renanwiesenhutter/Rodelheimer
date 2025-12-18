@@ -554,78 +554,52 @@ const Admin = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="bg-primary text-primary-foreground py-5">
-        <div className="container-custom flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <h1 className="font-display text-2xl font-bold text-center sm:text-left">
-            Painel Administrativo
-          </h1>
-
-          <div className="flex items-center justify-center sm:justify-end gap-3">
-            <Button
-              asChild
-              variant="outline"
-              className="border-primary-foreground text-primary-foreground hover:bg-primary-foreground hover:text-primary"
-            >
-              <Link to="/">Voltar ao Site</Link>
-            </Button>
-
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleLogout}
-              className="text-primary-foreground hover:bg-primary-foreground/20"
-              title="Sair"
-            >
-              <LogOut className="w-5 h-5" />
-            </Button>
-          </div>
-        </div>
-      </header>
 
       {/* Main */}
       <main className="section-padding bg-secondary">
         <div className="container-custom">
-          <div className="mb-6">
-            <button
-              onClick={() => navigate('/')}
-              className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              Zurück
-            </button>
+          <div className="text-center mb-12">
+            <p className="text-muted-foreground font-body text-sm tracking-[0.2em] uppercase mb-4">
+              Appointments
+            </p>
+
+            <h2 className="font-display text-4xl md:text-5xl font-bold text-foreground mb-4">
+              Agendamentos
+            </h2>
+
+            <div className="w-20 h-1 bg-foreground mx-auto" />
           </div>
 
-          <h3 className="font-display text-2xl font-semibold text-center mb-8">
-            Datum und Uhrzeit auswählen
-          </h3>
+          <div className="flex justify-center mb-10">
+            <div className="w-full max-w-xl">
+              <div className="bg-card border border-border rounded-2xl px-4 py-4 shadow-sm">
+                <div className="flex flex-col sm:flex-row sm:items-end gap-3">
+                  <div className="flex-1">
+                    <p className="text-xs text-center tracking-[0.18em] uppercase text-muted-foreground mb-2">
+                      Barbier auswählen
+                    </p>
 
-          <div className="flex justify-center mb-6">
-            <div className="flex items-center gap-3 flex-wrap justify-center">
-              <span className="text-sm text-muted-foreground">Barbier:</span>
-              <select
-                value={selectedBarber}
-                onChange={(e) => setSelectedBarber(e.target.value)}
-                className="h-10 rounded-md border border-border bg-background px-3 text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                disabled={barbersLoading}
-              >
-                {barbersLoading && <option value="">Carregando...</option>}
-                {!barbersLoading && barbers.length === 0 && <option value="">Nenhum barbeiro</option>}
-                {barbers.map((b) => (
-                  <option key={b.id} value={b.name}>
-                    {b.name}
-                  </option>
-                ))}
-              </select>
+                    <div className="relative">
+                      <User className="w-4 h-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
 
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={refreshDay}
-                disabled={!selectedBarber || !selectedDateKey || dayLoading}
-              >
-                {dayLoading ? '...' : 'Aktualisieren'}
-              </Button>
+                      <select
+                        value={selectedBarber}
+                        onChange={(e) => setSelectedBarber(e.target.value)}
+                        disabled={barbersLoading}
+                        className="w-full h-11 rounded-xl border border-border bg-background text-foreground pl-9 pr-10 focus:outline-none focus:ring-2 focus:ring-primary"
+                      >
+                        {barbersLoading && <option value="">Carregando...</option>}
+                        {!barbersLoading && barbers.length === 0 && <option value="">Nenhum barbeiro</option>}
+                        {barbers.map((b) => (
+                          <option key={b.id} value={b.name}>
+                            {b.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -642,16 +616,11 @@ const Admin = () => {
             </div>
 
             <div>
-              <p className="text-sm text-muted-foreground mb-4 flex items-center gap-2">
+              <p className="text-sm text-muted-foreground mb-4 flex items-center justify-center gap-2">
                 <CalendarIcon className="w-4 h-4" />
                 {selectedDate
                   ? format(selectedDate, 'EEEE, dd MMMM yyyy', { locale: de })
                   : 'Bitte wählen Sie ein Datum'}
-              </p>
-
-              <p className="text-xs text-muted-foreground mb-4 flex items-center gap-2">
-                <Clock className="w-4 h-4" />
-                Dauer: 30 Min
               </p>
 
               <div className="grid grid-cols-3 gap-2">
@@ -690,7 +659,7 @@ const Admin = () => {
           </div>
 
           {/* Agendamentos */}
-          <div className="mt-10 bg-card border border-border rounded-xl p-6">
+          <div className="mt-10">
             <h3 className="font-display text-xl font-semibold mb-4 text-center">
               Agendamentos do dia ({bookedToday.length})
             </h3>
@@ -716,10 +685,12 @@ const Admin = () => {
                       <div className="space-y-2 min-w-0">
                         <div className="flex flex-wrap items-center gap-3">
                           <span className="font-medium">{a.time}</span>
+
                           <span className="text-sm text-muted-foreground flex items-center gap-2">
                             <Scissors className="w-4 h-4" />
                             {a.service}
                           </span>
+
                           <span className="text-xs text-muted-foreground">
                             ({Math.max(1, a.duration_slots ?? 1) * 30} min)
                           </span>
@@ -730,6 +701,7 @@ const Admin = () => {
                             <User className="w-4 h-4" />
                             {a.name || '—'}
                           </span>
+
                           <span className="flex items-center gap-2">
                             <Phone className="w-4 h-4" />
                             {a.phone ? (
@@ -753,6 +725,7 @@ const Admin = () => {
                           <Pencil className="w-4 h-4 mr-2" />
                           Editar
                         </Button>
+
                         <Button
                           variant="outline"
                           size="sm"
@@ -772,6 +745,7 @@ const Admin = () => {
                         >
                           <Pencil className="w-4 h-4" />
                         </Button>
+
                         <Button
                           variant="outline"
                           size="icon"

@@ -29,10 +29,27 @@ const services = [
 
 // mesmos slots do booking
 const timeSlots = [
-  '09:00', '09:30', '10:00', '10:30', '11:00', '11:30',
-  '12:00', '12:30', '13:00', '13:30', '14:00', '14:30',
-  '15:00', '15:30', '16:00', '16:30', '17:00', '17:30',
-  '18:00', '18:30', '19:00',
+  '09:00',
+  '09:30',
+  '10:00',
+  '10:30',
+  '11:00',
+  '11:30',
+  '12:00',
+  '12:30',
+  '13:00',
+  '13:30',
+  '14:00',
+  '14:30',
+  '15:00',
+  '15:30',
+  '16:00',
+  '16:30',
+  '17:00',
+  '17:30',
+  '18:00',
+  '18:30',
+  '19:00',
 ];
 
 type Barber = { id: string; name: string };
@@ -86,10 +103,7 @@ const Admin = () => {
     return d;
   });
 
-  const selectedDateKey = useMemo(
-    () => (selectedDate ? toDateKey(selectedDate) : ''),
-    [selectedDate]
-  );
+  const selectedDateKey = useMemo(() => (selectedDate ? toDateKey(selectedDate) : ''), [selectedDate]);
 
   const [dayAppointments, setDayAppointments] = useState<AppointmentRow[]>([]);
   const [dayLoading, setDayLoading] = useState(false);
@@ -105,10 +119,7 @@ const Admin = () => {
   const [editName, setEditName] = useState<string>('');
   const [editPhone, setEditPhone] = useState<string>('');
 
-  const editServiceObj = useMemo(
-    () => services.find((s) => s.name === editService),
-    [editService]
-  );
+  const editServiceObj = useMemo(() => services.find((s) => s.name === editService), [editService]);
   const editDurationSlots = editServiceObj?.durationSlots ?? (editing?.duration_slots ?? 1);
 
   // scroll pro agendamento clicado no grid
@@ -147,7 +158,9 @@ const Admin = () => {
      AUTH + ADMIN CHECK
   ========================= */
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, sess) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, sess) => {
       setSession(sess);
       setUser(sess?.user ?? null);
 
@@ -175,12 +188,7 @@ const Admin = () => {
   }, [navigate]);
 
   const checkAdminRole = async (userId: string) => {
-    const { data } = await supabase
-      .from('user_roles')
-      .select('role')
-      .eq('user_id', userId)
-      .eq('role', 'admin')
-      .maybeSingle();
+    const { data } = await supabase.from('user_roles').select('role').eq('user_id', userId).eq('role', 'admin').maybeSingle();
 
     if (data) {
       setIsAdmin(true);
@@ -238,12 +246,7 @@ const Admin = () => {
 
     setDayLoading(true);
 
-    const { data, error } = await supabase
-      .from('appointments')
-      .select('*')
-      .eq('date', dateKey)
-      .eq('barber', barberName)
-      .order('time', { ascending: true });
+    const { data, error } = await supabase.from('appointments').select('*').eq('date', dateKey).eq('barber', barberName).order('time', { ascending: true });
 
     setDayLoading(false);
 
@@ -275,10 +278,7 @@ const Admin = () => {
      OCCUPANCY MAP (booked/blocked)
   ========================= */
   const occupancy = useMemo(() => {
-    const occ: Record<
-      string,
-      { id: string; status: 'booked' | 'blocked'; isHead: boolean; appt: AppointmentRow }
-    > = {};
+    const occ: Record<string, { id: string; status: 'booked' | 'blocked'; isHead: boolean; appt: AppointmentRow }> = {};
 
     const active = dayAppointments.filter((a) => (a.status ?? 'booked') !== 'canceled');
 
@@ -286,11 +286,7 @@ const Admin = () => {
       const status = (appt.status ?? 'booked') as 'booked' | 'blocked';
       if (status !== 'booked' && status !== 'blocked') continue;
 
-      const slots = getRequiredSlots(
-        appt.time,
-        Math.max(1, appt.duration_slots ?? 1),
-        timeSlots
-      );
+      const slots = getRequiredSlots(appt.time, Math.max(1, appt.duration_slots ?? 1), timeSlots);
 
       slots.forEach((t, idx) => {
         occ[t] = { id: appt.id, status, isHead: idx === 0, appt };
@@ -312,10 +308,7 @@ const Admin = () => {
     const ok = window.confirm('Cancelar este agendamento?');
     if (!ok) return;
 
-    const { error } = await supabase
-      .from('appointments')
-      .update({ status: 'canceled', canceled_at: new Date().toISOString() })
-      .eq('id', appt.id);
+    const { error } = await supabase.from('appointments').update({ status: 'canceled', canceled_at: new Date().toISOString() }).eq('id', appt.id);
 
     if (error) {
       toast({
@@ -329,9 +322,34 @@ const Admin = () => {
     refreshDay();
   };
 
+  // evita duplicar bloqueio no mesmo slot (latência / double click)
   // Sem toasts de sucesso
   const blockSlot = async (time: string) => {
     if (!selectedDateKey || !selectedBarber) return;
+
+    // já existe bloqueio ativo nesse slot? então não insere de novo
+    const { data: existing, error: checkErr } = await supabase
+      .from('appointments')
+      .select('id')
+      .eq('date', selectedDateKey)
+      .eq('barber', selectedBarber)
+      .eq('time', time)
+      .eq('status', 'blocked')
+      .maybeSingle();
+
+    if (checkErr) {
+      toast({
+        title: 'Erro',
+        description: 'Não foi possível validar o bloqueio.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (existing?.id) {
+      // já está bloqueado
+      return;
+    }
 
     const { error } = await supabase.from('appointments').insert({
       service: 'Horário bloqueado',
@@ -356,11 +374,20 @@ const Admin = () => {
     refreshDay();
   };
 
-  const unblockSlot = async (appt: AppointmentRow) => {
-    const { error } = await supabase
+  // DESBLOQUEIA PELO SLOT (cancela todos os "blocked" duplicados daquele time/date/barber)
+  const unblockSlot = async (time: string, apptIdFallback?: string) => {
+    if (!selectedDateKey || !selectedBarber) return;
+
+    // 1) tenta cancelar TODOS os bloqueios desse slot (resolve duplicados)
+    const { data, error } = await supabase
       .from('appointments')
       .update({ status: 'canceled', canceled_at: new Date().toISOString() })
-      .eq('id', appt.id);
+      .eq('date', selectedDateKey)
+      .eq('barber', selectedBarber)
+      .eq('time', time)
+      // aceita casos antigos onde status possa ter vindo null
+      .in('status', ['blocked', null])
+      .select('id');
 
     if (error) {
       toast({
@@ -371,7 +398,33 @@ const Admin = () => {
       return;
     }
 
-    refreshDay();
+    // Se não atualizou nada, faz fallback por ID (o que você clicou no grid)
+    if (!data || data.length === 0) {
+      if (!apptIdFallback) {
+        toast({
+          title: 'Nada para desbloquear',
+          description: 'Não encontrei bloqueio ativo para esse horário.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      const { error: e2 } = await supabase
+        .from('appointments')
+        .update({ status: 'canceled', canceled_at: new Date().toISOString() })
+        .eq('id', apptIdFallback);
+
+      if (e2) {
+        toast({
+          title: 'Erro',
+          description: 'Não foi possível desbloquear (fallback).',
+          variant: 'destructive',
+        });
+        return;
+      }
+    }
+
+    await refreshDay();
   };
 
   const scrollToAppointment = (apptId: string) => {
@@ -395,7 +448,7 @@ const Admin = () => {
     }
 
     if (hit.status === 'blocked') {
-      await unblockSlot(hit.appt);
+      await unblockSlot(time, hit.appt.id); // <-- aqui
       return;
     }
 
@@ -447,12 +500,7 @@ const Admin = () => {
     const movingToAnotherDayOrBarber = dateKey !== editing.date || editBarber !== editing.barber;
 
     if (movingToAnotherDayOrBarber) {
-      const { data, error } = await supabase
-        .from('appointments')
-        .select('*')
-        .eq('date', dateKey)
-        .eq('barber', editBarber)
-        .order('time', { ascending: true });
+      const { data, error } = await supabase.from('appointments').select('*').eq('date', dateKey).eq('barber', editBarber).order('time', { ascending: true });
 
       if (error) {
         setEditSaving(false);
@@ -537,10 +585,7 @@ const Admin = () => {
   /* =========================
      DERIVED
   ========================= */
-  const bookedToday = useMemo(
-    () => dayAppointments.filter((a) => (a.status ?? 'booked') === 'booked'),
-    [dayAppointments]
-  );
+  const bookedToday = useMemo(() => dayAppointments.filter((a) => (a.status ?? 'booked') === 'booked'), [dayAppointments]);
 
   if (checkingAuth) {
     return (
@@ -554,18 +599,13 @@ const Admin = () => {
 
   return (
     <div className="min-h-screen bg-background">
-
       {/* Main */}
       <main className="section-padding bg-secondary">
         <div className="container-custom">
           <div className="text-center mb-12">
-            <p className="text-muted-foreground font-body text-sm tracking-[0.2em] uppercase mb-4">
-              Appointments
-            </p>
+            <p className="text-muted-foreground font-body text-sm tracking-[0.2em] uppercase mb-4">Appointments</p>
 
-            <h2 className="font-display text-4xl md:text-5xl font-bold text-foreground mb-4">
-              Agendamentos
-            </h2>
+            <h2 className="font-display text-4xl md:text-5xl font-bold text-foreground mb-4">Agendamentos</h2>
 
             <div className="w-20 h-1 bg-foreground mx-auto" />
           </div>
@@ -575,9 +615,7 @@ const Admin = () => {
               <div className="bg-card border border-border rounded-2xl px-4 py-4 shadow-sm">
                 <div className="flex flex-col sm:flex-row sm:items-end gap-3">
                   <div className="flex-1">
-                    <p className="text-xs text-center tracking-[0.18em] uppercase text-muted-foreground mb-2">
-                      Barbier auswählen
-                    </p>
+                    <p className="text-xs text-center tracking-[0.18em] uppercase text-muted-foreground mb-2">Barbier auswählen</p>
 
                     <div className="relative">
                       <User className="w-4 h-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
@@ -598,12 +636,24 @@ const Admin = () => {
                       </select>
                     </div>
                   </div>
+
+                  {/* (opcional) botões de navegação/logout se você quiser colocar aqui */}
+                  {/* <div className="flex gap-2 justify-center sm:justify-end">
+                    <Button variant="outline" size="sm" onClick={() => navigate('/')}>
+                      <ArrowLeft className="w-4 h-4 mr-2" />
+                      Voltar
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={handleLogout}>
+                      <LogOut className="w-4 h-4 mr-2" />
+                      Sair
+                    </Button>
+                  </div> */}
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-[1.25fr_1fr] gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-[1.25fr_1fr] gap-8 mt-[-20px]">
             <div className="bg-card rounded-lg p-4 border border-border flex justify-center">
               <Calendar
                 mode="single"
@@ -618,9 +668,7 @@ const Admin = () => {
             <div>
               <p className="text-sm text-muted-foreground mb-4 flex items-center justify-center gap-2">
                 <CalendarIcon className="w-4 h-4" />
-                {selectedDate
-                  ? format(selectedDate, 'EEEE, dd MMMM yyyy', { locale: de })
-                  : 'Bitte wählen Sie ein Datum'}
+                {selectedDate ? format(selectedDate, 'EEEE, dd MMMM yyyy', { locale: de }) : 'Bitte wählen Sie ein Datum'}
               </p>
 
               <div className="grid grid-cols-3 gap-2">
@@ -642,32 +690,24 @@ const Admin = () => {
                       type="button"
                       onClick={() => handleSlotClick(time)}
                       className={cls}
-                      title={
-                        isBlocked
-                          ? 'Clique para desbloquear'
-                          : isBooked
-                          ? 'Clique para ir ao agendamento'
-                          : 'Clique para bloquear'
-                      }
+                      title={isBlocked ? 'Clique para desbloquear' : isBooked ? 'Clique para ir ao agendamento' : 'Clique para bloquear'}
                     >
                       {time}
                     </button>
                   );
                 })}
               </div>
+
+              {dayLoading && <p className="text-xs text-muted-foreground mt-3 text-center">Carregando horários...</p>}
             </div>
           </div>
 
           {/* Agendamentos */}
           <div className="mt-10">
-            <h3 className="font-display text-xl font-semibold mb-4 text-center">
-              Agendamentos do dia ({bookedToday.length})
-            </h3>
+            <h3 className="font-display text-xl font-semibold mb-4 text-center">Agendamentos do dia ({bookedToday.length})</h3>
 
             {bookedToday.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-8">
-                Nenhum agendamento neste dia.
-              </p>
+              <p className="text-sm text-muted-foreground text-center py-8">Nenhum agendamento neste dia.</p>
             ) : (
               <div className="space-y-3">
                 {bookedToday.map((a) => (
@@ -691,9 +731,7 @@ const Admin = () => {
                             {a.service}
                           </span>
 
-                          <span className="text-xs text-muted-foreground">
-                            ({Math.max(1, a.duration_slots ?? 1) * 30} min)
-                          </span>
+                          <span className="text-xs text-muted-foreground">({Math.max(1, a.duration_slots ?? 1) * 30} min)</span>
                         </div>
 
                         <div className="text-sm text-muted-foreground flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:gap-4">
@@ -716,43 +754,21 @@ const Admin = () => {
                       </div>
 
                       <div className="flex items-center gap-2 flex-wrap sm:justify-end">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => openEdit(a)}
-                          className="hidden sm:inline-flex whitespace-nowrap"
-                        >
+                        <Button variant="outline" size="sm" onClick={() => openEdit(a)} className="hidden sm:inline-flex whitespace-nowrap">
                           <Pencil className="w-4 h-4 mr-2" />
                           Editar
                         </Button>
 
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => cancelAppointment(a)}
-                          className="hidden sm:inline-flex whitespace-nowrap"
-                        >
+                        <Button variant="outline" size="sm" onClick={() => cancelAppointment(a)} className="hidden sm:inline-flex whitespace-nowrap">
                           <X className="w-4 h-4 mr-2" />
                           Cancelar
                         </Button>
 
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          onClick={() => openEdit(a)}
-                          title="Editar"
-                          className="sm:hidden"
-                        >
+                        <Button variant="outline" size="icon" onClick={() => openEdit(a)} title="Editar" className="sm:hidden">
                           <Pencil className="w-4 h-4" />
                         </Button>
 
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          onClick={() => cancelAppointment(a)}
-                          title="Cancelar"
-                          className="sm:hidden"
-                        >
+                        <Button variant="outline" size="icon" onClick={() => cancelAppointment(a)} title="Cancelar" className="sm:hidden">
                           <X className="w-4 h-4" />
                         </Button>
                       </div>
@@ -771,10 +787,7 @@ const Admin = () => {
           <div className="absolute inset-0 bg-black/60" onClick={closeEdit} aria-hidden="true" />
 
           {/* container com scroll próprio */}
-          <div
-            ref={modalScrollRef}
-            className="absolute inset-0 overflow-y-auto overscroll-contain"
-          >
+          <div ref={modalScrollRef} className="absolute inset-0 overflow-y-auto overscroll-contain">
             <div className="min-h-[100dvh] flex items-start justify-center p-4 sm:p-6">
               <div className="w-full max-w-3xl bg-card border border-border rounded-2xl shadow-lg overflow-hidden">
                 <div className="px-6 py-4 border-b border-border flex items-center justify-between">
@@ -875,11 +888,7 @@ const Admin = () => {
 
                     <div className="mt-4 text-xs text-muted-foreground flex items-start gap-2 justify-center">
                       <CalendarIcon className="w-4 h-4 mt-0.5 shrink-0" />
-                      <span className="leading-relaxed">
-                        {editDate
-                          ? format(editDate, 'EEEE, dd MMMM yyyy', { locale: de })
-                          : 'Selecione uma data'}
-                      </span>
+                      <span className="leading-relaxed">{editDate ? format(editDate, 'EEEE, dd MMMM yyyy', { locale: de }) : 'Selecione uma data'}</span>
                     </div>
                   </div>
                 </div>

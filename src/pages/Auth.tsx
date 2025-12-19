@@ -7,11 +7,11 @@ import { useToast } from '@/hooks/use-toast';
 import { z } from 'zod';
 
 const authSchema = z.object({
-  email: z.string().trim().email({ message: 'E-mail inválido' }),
-  password: z.string().min(6, { message: 'A senha deve ter pelo menos 6 caracteres' }),
+  email: z.string().trim().email({ message: 'Ungültige E-Mail-Adresse' }),
+  password: z.string().min(6, { message: 'Das Passwort muss mindestens 6 Zeichen lang sein' }),
 });
 
-const WHATSAPP_LINK = 'https://wa.me/5545991453366?text=Oi!%20N%C3%A3o%20consigo%20fazer%20login%20no%20painel.%20Pode%20me%20ajudar%3F';
+const WHATSAPP_LINK = 'https://wa.me/5545991453366?text=Hallo!%20Ich%20kann%20mich%20nicht%20im%20Panel%20anmelden.%20K%C3%B6nnen%20Sie%20mir%20helfen%3F';
 
 const Auth = () => {
   const [email, setEmail] = useState('');
@@ -58,10 +58,10 @@ const Auth = () => {
 
     if (error) {
       toast({
-        title: 'Erro ao entrar',
+        title: 'Anmeldefehler',
         description:
           error.message === 'Invalid login credentials'
-            ? 'E-mail ou senha incorretos'
+            ? 'E-Mail oder Passwort falsch'
             : error.message,
         variant: 'destructive',
       });
@@ -79,14 +79,14 @@ const Auth = () => {
           </h1>
 
           <p className="text-muted-foreground text-center mb-8">
-            Acesse o painel administrativo
+            Zugriff auf das Administrationspanel
           </p>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <Input
                 type="email"
-                placeholder="E-mail"
+                placeholder="E-Mail"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className={errors.email ? 'border-destructive' : ''}
@@ -100,7 +100,7 @@ const Auth = () => {
             <div>
               <Input
                 type="password"
-                placeholder="Senha"
+                placeholder="Passwort"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className={errors.password ? 'border-destructive' : ''}
@@ -112,7 +112,7 @@ const Auth = () => {
             </div>
 
             <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? 'Carregando...' : 'Entrar'}
+              {isLoading ? 'Laden...' : 'Anmelden'}
             </Button>
           </form>
 
@@ -123,7 +123,7 @@ const Auth = () => {
               rel="noreferrer"
               className="text-muted-foreground hover:text-foreground text-sm underline"
             >
-              Não consigo fazer login
+              Ich kann mich nicht anmelden
             </a>
           </div>
         </div>

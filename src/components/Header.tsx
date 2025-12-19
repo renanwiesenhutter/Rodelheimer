@@ -30,6 +30,11 @@ const Header = () => {
     { href: '#contact', label: 'Kontakt' },
   ];
 
+  const handleAgendamentosClick = () => {
+    navigate('/admin');
+    setIsMobileMenuOpen(false);
+  };
+
   const scrollToSection = (href: string) => {
     const element = document.querySelector(href);
     if (element) element.scrollIntoView({ behavior: 'smooth' });
@@ -74,6 +79,12 @@ const Header = () => {
                 {link.label}
               </button>
             ))}
+            <button
+              onClick={handleAgendamentosClick}
+              className="text-sm font-medium text-foreground/80 hover:text-foreground transition-colors"
+            >
+              Agendamentos
+            </button>
           </div>
 
           {/* CTA-Button (verschwindet zusammen mit dem Header) */}
@@ -111,6 +122,12 @@ const Header = () => {
                 {link.label}
               </button>
             ))}
+            <button
+              onClick={handleAgendamentosClick}
+              className="block w-full text-left px-4 py-3 text-foreground/80 hover:text-foreground hover:bg-secondary transition-colors"
+            >
+              Agendamentos
+            </button>
             <div className="px-4 pt-4">
               <Button
                 onClick={() => navigate('/booking')}

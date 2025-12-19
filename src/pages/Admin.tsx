@@ -1,70 +1,14 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { Button } from '@/components/ui/button';
-import { Calendar } from '@/components/ui/calendar';
-import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import type { Session, User as SupabaseUser } from '@supabase/supabase-js';
-import { ArrowLeft, CalendarIcon, LogOut, Pencil, Phone, Scissors, User, ChevronDown, X } from 'lucide-react';
-import { format, isSunday } from 'date-fns';
-import { de } from 'date-fns/locale';
-
-/* =========================
-   SERVICES + DURATION (slots de 30min)
-========================= */
-const services = [
-  { name: 'Maschinenschnitt', price: '12€', durationSlots: 1 },
-  { name: 'Bartrasur', price: '12€', durationSlots: 1 },
-  { name: 'Augenbrauen zupfen', price: '7€', durationSlots: 1 },
-
-  { name: 'Kurzhaarschnitte für Damen', price: '18€', durationSlots: 1 },
-  { name: 'Schüler bis 16 Jahre', price: '16€', durationSlots: 1 },
-
-  { name: 'Maschinenschnitt + Bartrasur', price: '24€', durationSlots: 2 },
-  { name: 'Maschinenschnitt + Augenbrauen zupfen', price: '19€', durationSlots: 2 },
-  { name: 'Bartrasur + Augenbrauen zupfen', price: '19€', durationSlots: 2 },
-  { name: 'Maschinenschnitt + Bartrasur + Augenbrauen zupfen', price: '31€', durationSlots: 3 },
-];
-
-// mesmos slots do booking
-const timeSlots = [
-  '09:00', '09:30', '10:00', '10:30', '11:00', '11:30',
-  '12:00', '12:30', '13:00', '13:30', '14:00', '14:30',
-  '15:00', '15:30', '16:00', '16:30', '17:00', '17:30',
-  '18:00', '18:30', '19:00',
-];
-
-type Barber = { id: string; name: string };
-
-type AppointmentRow = {
-  id: string;
-  service: string;
-  barber: string;
-  date: string; // yyyy-mm-dd
-  time: string; // HH:mm
-  duration_slots?: number | null;
-  status?: string | null; // booked | blocked | canceled
-  name?: string | null;
-  phone?: string | null;
-  created_at?: string | null;
-  canceled_at?: string | null;
-};
-
-const pad2 = (n: number) => String(n).padStart(2, '0');
-
-const toDateKey = (d: Date) => {
-  const y = d.getFullYear();
-  const m = pad2(d.getMonth() + 1);
-  const day = pad2(d.getDate());
-  return `${y}-${m}-${day}`;
-};
-
-const getRequiredSlots = (startTime: string, durationSlots: number, allSlots: string[]) => {
-  const startIndex = allSlots.indexOf(startTime);
-  if (startIndex === -1) return [];
-  return allSlots.slice(startIndex, startIndex + Math.max(durationSlots, 1));
-};
+import AdminHeader from '@/components/admin/AdminHeader';
+import AppointmentsSection from '@/components/admin/AppointmentsSection';
+import EditAppointmentModal from '@/components/admin/EditAppointmentModal';
+import { timeSlots } from '@/components/admin/constants';
+import { toDateKey, getRequiredSlots } from '@/components/admin/utils';
+import type { AppointmentRow, Barber } from '@/components/admin/types';
 
 const Admin = () => {
   const navigate = useNavigate();
@@ -96,50 +40,9 @@ const Admin = () => {
 
   // editar
   const [editing, setEditing] = useState<AppointmentRow | null>(null);
-  const [editSaving, setEditSaving] = useState(false);
-
-  const [editService, setEditService] = useState<string>('');
-  const [editBarber, setEditBarber] = useState<string>('');
-  const [editDate, setEditDate] = useState<Date | undefined>(undefined);
-  const [editTime, setEditTime] = useState<string>('');
-  const [editName, setEditName] = useState<string>('');
-  const [editPhone, setEditPhone] = useState<string>('');
-
-  const editServiceObj = useMemo(
-    () => services.find((s) => s.name === editService),
-    [editService]
-  );
-  const editDurationSlots = editServiceObj?.durationSlots ?? (editing?.duration_slots ?? 1);
 
   // scroll pro agendamento clicado no grid
-  const appointmentRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const [highlightId, setHighlightId] = useState<string | null>(null);
-
-  // refs do modal para controlar scroll
-  const modalScrollRef = useRef<HTMLDivElement | null>(null);
-
-  /* =========================
-     LOCK SCROLL DO BODY QUANDO MODAL ABRE
-  ========================= */
-  useEffect(() => {
-    if (!editing) return;
-
-    const prevOverflow = document.body.style.overflow;
-    const prevPaddingRight = document.body.style.paddingRight;
-
-    const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
-    document.body.style.overflow = 'hidden';
-    if (scrollbarWidth > 0) document.body.style.paddingRight = `${scrollbarWidth}px`;
-
-    requestAnimationFrame(() => {
-      if (modalScrollRef.current) modalScrollRef.current.scrollTop = 0;
-    });
-
-    return () => {
-      document.body.style.overflow = prevOverflow;
-      document.body.style.paddingRight = prevPaddingRight;
-    };
-  }, [editing]);
 
   /* =========================
      AUTH + ADMIN CHECK
@@ -185,8 +88,8 @@ const Admin = () => {
       setCheckingAuth(false);
     } else {
       toast({
-        title: 'Acesso negado',
-        description: 'Você não tem permissão de administrador.',
+        title: 'Zugriff verweigert',
+        description: 'Sie haben keine Administratorberechtigung.',
         variant: 'destructive',
       });
       navigate('/');
@@ -204,8 +107,8 @@ const Admin = () => {
 
     if (error) {
       toast({
-        title: 'Erro',
-        description: 'Não foi possível carregar os barbeiros.',
+        title: 'Fehler',
+        description: 'Die Barbiere konnten nicht geladen werden.',
         variant: 'destructive',
       });
       return;
@@ -247,8 +150,8 @@ const Admin = () => {
 
     if (error) {
       toast({
-        title: 'Erro',
-        description: 'Não foi possível carregar os agendamentos do dia.',
+        title: 'Fehler',
+        description: 'Die Termine des Tages konnten nicht geladen werden.',
         variant: 'destructive',
       });
       return;
@@ -270,44 +173,10 @@ const Admin = () => {
   };
 
   /* =========================
-     OCCUPANCY MAP (booked/blocked)
-  ========================= */
-  const occupancy = useMemo(() => {
-    const occ: Record<
-      string,
-      { id: string; status: 'booked' | 'blocked'; isHead: boolean; appt: AppointmentRow }
-    > = {};
-
-    const active = dayAppointments.filter((a) => (a.status ?? 'booked') !== 'canceled');
-
-    for (const appt of active) {
-      const status = (appt.status ?? 'booked') as 'booked' | 'blocked';
-      if (status !== 'booked' && status !== 'blocked') continue;
-
-      const slots = getRequiredSlots(
-        appt.time,
-        Math.max(1, appt.duration_slots ?? 1),
-        timeSlots
-      );
-
-      slots.forEach((t, idx) => {
-        occ[t] = { id: appt.id, status, isHead: idx === 0, appt };
-      });
-    }
-
-    return occ;
-  }, [dayAppointments]);
-
-  /* =========================
      ACTIONS
   ========================= */
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    navigate('/auth');
-  };
-
   const cancelAppointment = async (appt: AppointmentRow) => {
-    const ok = window.confirm('Cancelar este agendamento?');
+    const ok = window.confirm('Diesen Termin stornieren?');
     if (!ok) return;
 
     const { error } = await supabase
@@ -343,8 +212,8 @@ const Admin = () => {
 
     if (checkErr) {
       toast({
-        title: 'Erro',
-        description: 'Não foi possível validar o bloqueio.',
+        title: 'Fehler',
+        description: 'Die Sperrung konnte nicht validiert werden.',
         variant: 'destructive',
       });
       return;
@@ -353,20 +222,20 @@ const Admin = () => {
     if (exists?.id) return;
 
     const { error } = await supabase.from('appointments').insert({
-      service: 'Horário bloqueado',
+      service: 'Zeit gesperrt',
       barber: selectedBarber,
       date: selectedDateKey,
       time,
       duration_slots: 1,
       status: 'blocked',
-      name: 'Bloqueado',
+      name: 'Gesperrt',
       phone: '-',
     });
 
     if (error) {
       toast({
-        title: 'Erro',
-        description: 'Não foi possível bloquear o horário.',
+        title: 'Fehler',
+        description: 'Die Zeit konnte nicht gesperrt werden.',
         variant: 'destructive',
       });
       return;
@@ -375,7 +244,7 @@ const Admin = () => {
     refreshDay();
   };
 
-  // DESBLOQUEAR: deleta o appointment blocked daquele slot (mais fácil e não dá “update 0 linhas”)
+  // DESBLOQUEAR: deleta o appointment blocked daquele slot
   const unblockSlot = async (time: string) => {
     if (!selectedDateKey || !selectedBarber) return;
 
@@ -389,8 +258,8 @@ const Admin = () => {
 
     if (error) {
       toast({
-        title: 'Erro',
-        description: 'Não foi possível desbloquear.',
+        title: 'Fehler',
+        description: 'Die Zeit konnte nicht entsperrt werden.',
         variant: 'destructive',
       });
       return;
@@ -400,18 +269,29 @@ const Admin = () => {
   };
 
   const scrollToAppointment = (apptId: string) => {
-    const el = appointmentRefs.current[apptId];
-    if (!el) return;
-
     setHighlightId(apptId);
-    el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-
     window.setTimeout(() => {
       setHighlightId((cur) => (cur === apptId ? null : cur));
     }, 1600);
   };
 
   const handleSlotClick = async (time: string) => {
+    // Calculate occupancy
+    const occupancy: Record<string, { id: string; status: 'booked' | 'blocked' }> = {};
+    const active = dayAppointments.filter((a) => (a.status ?? 'booked') !== 'canceled');
+
+    for (const appt of active) {
+      const status = (appt.status ?? 'booked') as 'booked' | 'blocked';
+      if (status !== 'booked' && status !== 'blocked') continue;
+
+      const slots = getRequiredSlots(
+        appt.time,
+        Math.max(1, appt.duration_slots ?? 1),
+        timeSlots
+      );
+      slots.forEach((t) => (occupancy[t] = { id: appt.id, status }));
+    }
+
     const hit = occupancy[time];
 
     if (!hit) {
@@ -434,62 +314,45 @@ const Admin = () => {
   ========================= */
   const openEdit = (appt: AppointmentRow) => {
     setEditing(appt);
-    setEditService(appt.service ?? '');
-    setEditBarber(appt.barber ?? selectedBarber);
-
-    const [y, m, d] = (appt.date ?? selectedDateKey).split('-').map(Number);
-    const dateObj = new Date(y, m - 1, d);
-    dateObj.setHours(0, 0, 0, 0);
-
-    setEditDate(dateObj);
-    setEditTime(appt.time ?? '');
-    setEditName(appt.name ?? '');
-    setEditPhone(appt.phone ?? '');
   };
 
   const closeEdit = () => {
     setEditing(null);
-    setEditSaving(false);
   };
 
-  const saveEdit = async () => {
+  const saveEdit = async (data: {
+    service: string;
+    barber: string;
+    date: string;
+    time: string;
+    duration_slots: number;
+    name: string | null;
+    phone: string | null;
+  }) => {
     if (!editing) return;
-
-    const dateKey = editDate ? toDateKey(editDate) : '';
-    if (!editService || !editBarber || !dateKey || !editTime) {
-      toast({
-        title: 'Campos obrigatórios',
-        description: 'Preencha serviço, barbeiro, data e hora.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    setEditSaving(true);
 
     // valida conflito no destino
     let targetDayAppointments = dayAppointments;
-    const movingToAnotherDayOrBarber = dateKey !== editing.date || editBarber !== editing.barber;
+    const movingToAnotherDayOrBarber = data.date !== editing.date || data.barber !== editing.barber;
 
     if (movingToAnotherDayOrBarber) {
-      const { data, error } = await supabase
+      const { data: fetchedData, error } = await supabase
         .from('appointments')
         .select('*')
-        .eq('date', dateKey)
-        .eq('barber', editBarber)
+        .eq('date', data.date)
+        .eq('barber', data.barber)
         .order('time', { ascending: true });
 
       if (error) {
-        setEditSaving(false);
         toast({
-          title: 'Erro',
-          description: 'Não foi possível validar disponibilidade no destino.',
+          title: 'Fehler',
+          description: 'Die Verfügbarkeit am Zielort konnte nicht validiert werden.',
           variant: 'destructive',
         });
-        return;
+        throw error;
       }
 
-      targetDayAppointments = (data ?? []) as AppointmentRow[];
+      targetDayAppointments = (fetchedData ?? []) as AppointmentRow[];
     }
 
     const targetOcc: Record<string, { id: string; status: string }> = {};
@@ -502,8 +365,8 @@ const Admin = () => {
         slots.forEach((t) => (targetOcc[t] = { id: a.id, status: st }));
       });
 
-    const required = getRequiredSlots(editTime, Math.max(1, editDurationSlots), timeSlots);
-    const fits = required.length === Math.max(1, editDurationSlots);
+    const required = getRequiredSlots(data.time, Math.max(1, data.duration_slots), timeSlots);
+    const fits = required.length === Math.max(1, data.duration_slots);
 
     const conflict = required.some((t) => {
       const hit = targetOcc[t];
@@ -513,64 +376,51 @@ const Admin = () => {
     });
 
     if (!fits || conflict) {
-      setEditSaving(false);
       toast({
-        title: 'Conflito de horário',
-        description: 'Esse horário (ou parte dele) já está ocupado.',
+        title: 'Zeitkonflikt',
+        description: 'Diese Zeit (oder ein Teil davon) ist bereits belegt.',
         variant: 'destructive',
       });
-      return;
+      throw new Error('Conflito de horário');
     }
 
     const { error: updErr } = await supabase
       .from('appointments')
       .update({
-        service: editService,
-        barber: editBarber,
-        date: dateKey,
-        time: editTime,
-        duration_slots: Math.max(1, editDurationSlots),
-        name: editName || null,
-        phone: editPhone || null,
+        service: data.service,
+        barber: data.barber,
+        date: data.date,
+        time: data.time,
+        duration_slots: Math.max(1, data.duration_slots),
+        name: data.name || null,
+        phone: data.phone || null,
       })
       .eq('id', editing.id);
 
-    setEditSaving(false);
-
     if (updErr) {
       toast({
-        title: 'Erro',
-        description: 'Não foi possível salvar alterações.',
+        title: 'Fehler',
+        description: 'Die Änderungen konnten nicht gespeichert werden.',
         variant: 'destructive',
       });
-      return;
+      throw updErr;
     }
 
-    if (dateKey === selectedDateKey && editBarber === selectedBarber) {
+    if (data.date === selectedDateKey && data.barber === selectedBarber) {
       refreshDay();
     } else {
-      const [yy, mm, dd] = dateKey.split('-').map(Number);
+      const [yy, mm, dd] = data.date.split('-').map(Number);
       const nd = new Date(yy, mm - 1, dd);
       nd.setHours(0, 0, 0, 0);
       setSelectedDate(nd);
-      setSelectedBarber(editBarber);
+      setSelectedBarber(data.barber);
     }
-
-    closeEdit();
   };
-
-  /* =========================
-     DERIVED
-  ========================= */
-  const bookedToday = useMemo(
-    () => dayAppointments.filter((a) => (a.status ?? 'booked') === 'booked'),
-    [dayAppointments]
-  );
 
   if (checkingAuth) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <p className="text-muted-foreground">Verificando permissões...</p>
+        <p className="text-muted-foreground">Berechtigungen werden überprüft...</p>
       </div>
     );
   }
@@ -579,353 +429,38 @@ const Admin = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <AdminHeader />
+
       {/* Main */}
-      <main className="section-padding bg-secondary">
+      <main className="section-padding bg-secondary pt-24">
         <div className="container-custom">
-          <div className="text-center mb-12">
-            <p className="text-muted-foreground font-body text-sm tracking-[0.2em] uppercase mb-4">
-              Appointments
-            </p>
-
-            <h2 className="font-display text-4xl md:text-5xl font-bold text-foreground mb-4">
-              Agendamentos
-            </h2>
-
-            <div className="w-20 h-1 bg-foreground mx-auto" />
-          </div>
-
-          <div className="flex justify-center mb-10">
-            <div className="w-full max-w-xl">
-              <div className="bg-card border border-border rounded-2xl px-4 py-4 shadow-sm">
-                <div className="flex flex-col sm:flex-row sm:items-end gap-3">
-                  <div className="flex-1">
-                    <p className="text-xs text-center tracking-[0.18em] uppercase text-muted-foreground mb-2">
-                      Barbier auswählen
-                    </p>
-                    <div className="relative">
-                      <User className="w-4 h-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-
-                      <select
-                        value={selectedBarber}
-                        onChange={(e) => setSelectedBarber(e.target.value)}
-                        disabled={barbersLoading}
-                        className="w-full h-11 rounded-xl border border-border bg-background text-foreground
-                                  appearance-none pl-10 pr-10
-                                  focus:outline-none focus:ring-2 focus:ring-primary"
-                      >
-                        {barbersLoading && <option value="">Carregando...</option>}
-                        {!barbersLoading && barbers.length === 0 && <option value="">Nenhum barbeiro</option>}
-                        {barbers.map((b) => (
-                          <option key={b.id} value={b.name}>
-                            {b.name}
-                          </option>
-                        ))}
-                      </select>
-
-                      <ChevronDown className="w-4 h-4 text-muted-foreground absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-[1.25fr_1fr] gap-8">
-            <div className="bg-card rounded-lg p-4 border border-border flex justify-center">
-              <Calendar
-                mode="single"
-                selected={selectedDate}
-                onSelect={(d) => setSelectedDate(d)}
-                disabled={(date) => isSunday(date)}
-                locale={de}
-                className="origin-top md:scale-[1.10] lg:scale-[1.15]"
-              />
-            </div>
-
-            <div>
-              <p className="text-sm text-muted-foreground mb-4 flex items-center justify-center gap-2">
-                <CalendarIcon className="w-4 h-4" />
-                {selectedDate
-                  ? format(selectedDate, 'EEEE, dd MMMM yyyy', { locale: de })
-                  : 'Bitte wählen Sie ein Datum'}
-              </p>
-
-              <div className="grid grid-cols-3 gap-2">
-                {timeSlots.map((time) => {
-                  const hit = occupancy[time];
-                  const isBooked = hit?.status === 'booked';
-                  const isBlocked = hit?.status === 'blocked';
-
-                  const base = 'p-3 rounded-lg border text-sm font-medium transition-all';
-                  const freeCls = `border-border bg-card md:hover:border-primary active:border-primary active:bg-primary/5`;
-                  const bookedCls = 'border-border bg-muted text-muted-foreground';
-                  const blockedCls = 'border-destructive/40 bg-destructive/15 text-destructive';
-
-                  const cls = `${base} ${isBlocked ? blockedCls : isBooked ? bookedCls : freeCls}`;
-
-                  return (
-                    <button
-                      key={time}
-                      type="button"
-                      onClick={() => handleSlotClick(time)}
-                      className={cls}
-                      title={
-                        isBlocked
-                          ? 'Clique para desbloquear'
-                          : isBooked
-                          ? 'Clique para ir ao agendamento'
-                          : 'Clique para bloquear'
-                      }
-                    >
-                      {time}
-                    </button>
-                  );
-                })}
-              </div>
-
-              {dayLoading && (
-                <p className="text-xs text-muted-foreground mt-3 text-center">
-                  Carregando horários...
-                </p>
-              )}
-            </div>
-          </div>
-
-          {/* Agendamentos */}
-          <div className="mt-10">
-            <h3 className="font-display text-xl font-semibold mb-4 text-center">
-              Agendamentos do dia ({bookedToday.length})
-            </h3>
-
-            {bookedToday.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-8">
-                Nenhum agendamento neste dia.
-              </p>
-            ) : (
-              <div className="space-y-3">
-                {bookedToday.map((a) => (
-                  <div
-                    key={a.id}
-                    ref={(el) => {
-                      appointmentRefs.current[a.id] = el;
-                    }}
-                    className={[
-                      'border rounded-lg p-4 bg-background transition',
-                      highlightId === a.id ? 'border-primary ring-2 ring-primary/20' : 'border-border',
-                    ].join(' ')}
-                  >
-                    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-                      <div className="space-y-2 min-w-0">
-                        <div className="flex flex-wrap items-center gap-3">
-                          <span className="font-medium">{a.time}</span>
-
-                          <span className="text-sm text-muted-foreground flex items-center gap-2">
-                            <Scissors className="w-4 h-4" />
-                            {a.service}
-                          </span>
-
-                          <span className="text-xs text-muted-foreground">
-                            ({Math.max(1, a.duration_slots ?? 1) * 30} min)
-                          </span>
-                        </div>
-
-                        <div className="text-sm text-muted-foreground flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:gap-4">
-                          <span className="flex items-center gap-2">
-                            <User className="w-4 h-4" />
-                            {a.name || '—'}
-                          </span>
-
-                          <span className="flex items-center gap-2">
-                            <Phone className="w-4 h-4" />
-                            {a.phone ? (
-                              <a href={`tel:${a.phone}`} className="hover:underline text-foreground">
-                                {a.phone}
-                              </a>
-                            ) : (
-                              '—'
-                            )}
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-2 flex-wrap sm:justify-end">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => openEdit(a)}
-                          className="hidden sm:inline-flex whitespace-nowrap"
-                        >
-                          <Pencil className="w-4 h-4 mr-2" />
-                          Editar
-                        </Button>
-
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => cancelAppointment(a)}
-                          className="hidden sm:inline-flex whitespace-nowrap"
-                        >
-                          <X className="w-4 h-4 mr-2" />
-                          Cancelar
-                        </Button>
-
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          onClick={() => openEdit(a)}
-                          title="Editar"
-                          className="sm:hidden"
-                        >
-                          <Pencil className="w-4 h-4" />
-                        </Button>
-
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          onClick={() => cancelAppointment(a)}
-                          title="Cancelar"
-                          className="sm:hidden"
-                        >
-                          <X className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+          <AppointmentsSection
+            barbers={barbers}
+            selectedBarber={selectedBarber}
+            onBarberChange={setSelectedBarber}
+            barbersLoading={barbersLoading}
+            selectedDate={selectedDate}
+            onDateSelect={setSelectedDate}
+            appointments={dayAppointments}
+            appointmentsLoading={dayLoading}
+            highlightId={highlightId}
+            onSlotClick={handleSlotClick}
+            onEdit={openEdit}
+            onCancel={cancelAppointment}
+            onScrollTo={scrollToAppointment}
+          />
         </div>
       </main>
 
-      {/* EDIT MODAL (corrigido para mobile: scroll do modal + start topo) */}
-      {editing && (
-        <div className="fixed inset-0 z-50">
-          <div className="absolute inset-0 bg-black/60" onClick={closeEdit} aria-hidden="true" />
-
-          <div ref={modalScrollRef} className="absolute inset-0 overflow-y-auto overscroll-contain">
-            <div className="min-h-[100dvh] flex items-start justify-center p-4 sm:p-6">
-              <div className="w-full max-w-3xl bg-card border border-border rounded-2xl shadow-lg overflow-hidden">
-                <div className="px-6 py-4 border-b border-border flex items-center justify-between">
-                  <div className="min-w-0">
-                    <h3 className="font-display text-xl font-semibold">Editar agendamento</h3>
-                  </div>
-
-                  <Button variant="ghost" size="icon" onClick={closeEdit} title="Fechar">
-                    <X className="w-5 h-5" />
-                  </Button>
-                </div>
-
-                <div className="p-6 grid grid-cols-1 md:grid-cols-[1fr_1.1fr] gap-6">
-                  <div className="space-y-4">
-                    <div>
-                      <p className="text-sm text-muted-foreground mb-2">Serviço</p>
-                      <select
-                        value={editService}
-                        onChange={(e) => setEditService(e.target.value)}
-                        className="w-full h-11 pl-2 rounded-md border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                      >
-                        <option value="" disabled>
-                          Selecione...
-                        </option>
-                        {services.map((s) => (
-                          <option key={s.name} value={s.name}>
-                            {s.name} ({s.price}) — {s.durationSlots * 30}min
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div>
-                      <p className="text-sm text-muted-foreground mb-2">Barbeiro</p>
-                      <select
-                        value={editBarber}
-                        onChange={(e) => setEditBarber(e.target.value)}
-                        className="w-full h-11 pl-2 rounded-md border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                      >
-                        <option value="" disabled>
-                          Selecione...
-                        </option>
-                        {barbers.map((b) => (
-                          <option key={b.id} value={b.name}>
-                            {b.name}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div>
-                      <p className="text-sm text-muted-foreground mb-2">Hora</p>
-                      <select
-                        value={editTime}
-                        onChange={(e) => setEditTime(e.target.value)}
-                        className="w-full h-11 pl-2 rounded-md border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                      >
-                        <option value="" disabled>
-                          Selecione...
-                        </option>
-                        {timeSlots.map((t) => (
-                          <option key={t} value={t}>
-                            {t}
-                          </option>
-                        ))}
-                      </select>
-                      <p className="text-xs text-muted-foreground mt-2 leading-relaxed">
-                        Duração (auto): <strong>{Math.max(1, editDurationSlots) * 30} min</strong>
-                      </p>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <div>
-                        <p className="text-sm text-muted-foreground mb-2">Cliente</p>
-                        <Input value={editName} onChange={(e) => setEditName(e.target.value)} placeholder="Nome" />
-                      </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground mb-2">Telefone</p>
-                        <Input value={editPhone} onChange={(e) => setEditPhone(e.target.value)} placeholder="+49..." />
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="space-y-3">
-                    <p className="text-sm text-muted-foreground">Data</p>
-                    <div className="bg-background border border-border rounded-lg p-3 flex justify-center overflow-x-auto">
-                      <div className="w-fit mx-auto">
-                        <Calendar
-                          mode="single"
-                          selected={editDate}
-                          onSelect={(d) => setEditDate(d)}
-                          disabled={(date) => isSunday(date)}
-                          locale={de}
-                          className="w-full origin-top"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="mt-4 text-xs text-muted-foreground flex items-start gap-2 justify-center">
-                      <CalendarIcon className="w-4 h-4 mt-0.5 shrink-0" />
-                      <span className="leading-relaxed">
-                        {editDate
-                          ? format(editDate, 'EEEE, dd MMMM yyyy', { locale: de })
-                          : 'Selecione uma data'}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="p-6 border-t border-border flex flex-col sm:flex-row gap-3 justify-end">
-                  <Button variant="outline" onClick={closeEdit} disabled={editSaving}>
-                    Cancelar
-                  </Button>
-                  <Button onClick={saveEdit} disabled={editSaving} className="w-full sm:w-auto">
-                    {editSaving ? 'Salvando...' : 'Salvar alterações'}
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* EDIT MODAL */}
+      <EditAppointmentModal
+        appointment={editing}
+        barbers={barbers}
+        selectedDateKey={selectedDateKey}
+        dayAppointments={dayAppointments}
+        onClose={closeEdit}
+        onSave={saveEdit}
+      />
     </div>
   );
 };

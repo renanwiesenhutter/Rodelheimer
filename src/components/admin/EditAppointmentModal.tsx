@@ -2,11 +2,20 @@ import { useEffect, useRef, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { CalendarIcon, X } from 'lucide-react';
 import { format, isSunday } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { services, timeSlots } from './constants';
 import { toDateKey, getRequiredSlots } from './utils';
+import { supabase } from '@/integrations/supabase/client';
 import type { AppointmentRow, Barber } from './types';
 
 interface EditAppointmentModalProps {
@@ -35,6 +44,7 @@ const EditAppointmentModal = ({
   onSave,
 }: EditAppointmentModalProps) => {
   const modalScrollRef = useRef<HTMLDivElement | null>(null);
+  const isMobile = useIsMobile();
 
   const [editService, setEditService] = useState(appointment?.service ?? '');
   const [editBarber, setEditBarber] = useState(appointment?.barber ?? '');
@@ -101,12 +111,28 @@ const EditAppointmentModal = ({
     setSaving(true);
 
     try {
+      // Buscar o serviço para obter duration_minutes
+      let durationMinutes: number | null = null;
+      const { data: serviceData } = await supabase
+        .from('services')
+        .select('duration_minutes, duration_slots')
+        .eq('name', editService)
+        .single();
+      
+      if (serviceData) {
+        durationMinutes = serviceData.duration_minutes ?? (serviceData.duration_slots ?? 1) * 30;
+      } else {
+        // Fallback: calcular dos slots
+        durationMinutes = Math.max(1, editDurationSlots) * 30;
+      }
+
       await onSave({
         service: editService,
         barber: editBarber,
         date: dateKey,
         time: editTime,
         duration_slots: Math.max(1, editDurationSlots),
+        duration_minutes: durationMinutes,
         name: editName || null,
         phone: editPhone || null,
       });
@@ -132,7 +158,7 @@ const EditAppointmentModal = ({
                 <h3 className="font-display text-xl font-semibold">Termin bearbeiten</h3>
               </div>
 
-              <Button variant="ghost" size="icon" onClick={onClose} title="Schließen">
+              <Button variant="ghost" size="icon" onClick={onClose} title="Schließen" className="-mr-2">
                 <X className="w-5 h-5" />
               </Button>
             </div>
@@ -141,56 +167,110 @@ const EditAppointmentModal = ({
               <div className="space-y-4">
                 <div>
                   <p className="text-sm text-muted-foreground mb-2">Service</p>
-                  <select
-                    value={editService}
-                    onChange={(e) => setEditService(e.target.value)}
-                    className="w-full h-11 pl-2 rounded-md border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                  >
-                    <option value="" disabled>
-                      Auswählen...
-                    </option>
-                    {services.map((s) => (
-                      <option key={s.name} value={s.name}>
-                        {s.name} ({s.price}) — {s.durationSlots * 30}min
+                  {isMobile ? (
+                    <select
+                      value={editService}
+                      onChange={(e) => setEditService(e.target.value)}
+                      className="w-full h-11 pl-2 rounded-md border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                    >
+                      <option value="" disabled>
+                        Auswählen...
                       </option>
-                    ))}
-                  </select>
+                      {services.map((s) => (
+                        <option key={s.name} value={s.name}>
+                          {s.name} ({s.price}) — {s.durationSlots * 30}min
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <Select
+                      value={editService || undefined}
+                      onValueChange={(value) => setEditService(value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Auswählen..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {services.map((s) => (
+                          <SelectItem key={s.name} value={s.name}>
+                            {s.name} ({s.price}) — {s.durationSlots * 30}min
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
                 </div>
 
                 <div>
                   <p className="text-sm text-muted-foreground mb-2">Barbier</p>
-                  <select
-                    value={editBarber}
-                    onChange={(e) => setEditBarber(e.target.value)}
-                    className="w-full h-11 pl-2 rounded-md border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                  >
-                    <option value="" disabled>
-                      Auswählen...
-                    </option>
-                    {barbers.map((b) => (
-                      <option key={b.id} value={b.name}>
-                        {b.name}
+                  {isMobile ? (
+                    <select
+                      value={editBarber}
+                      onChange={(e) => setEditBarber(e.target.value)}
+                      className="w-full h-11 pl-2 rounded-md border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                    >
+                      <option value="" disabled>
+                        Auswählen...
                       </option>
-                    ))}
-                  </select>
+                      {barbers.map((b) => (
+                        <option key={b.id} value={b.name}>
+                          {b.name}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <Select
+                      value={editBarber || undefined}
+                      onValueChange={(value) => setEditBarber(value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Auswählen..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {barbers.map((b) => (
+                          <SelectItem key={b.id} value={b.name}>
+                            {b.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
                 </div>
 
                 <div>
                   <p className="text-sm text-muted-foreground mb-2">Uhrzeit</p>
-                  <select
-                    value={editTime}
-                    onChange={(e) => setEditTime(e.target.value)}
-                    className="w-full h-11 pl-2 rounded-md border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                  >
-                    <option value="" disabled>
-                      Auswählen...
-                    </option>
-                    {timeSlots.map((t) => (
-                      <option key={t} value={t}>
-                        {t}
+                  {isMobile ? (
+                    <select
+                      value={editTime}
+                      onChange={(e) => setEditTime(e.target.value)}
+                      className="w-full h-11 pl-2 rounded-md border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                    >
+                      <option value="" disabled>
+                        Auswählen...
                       </option>
-                    ))}
-                  </select>
+                      {timeSlots.map((t) => (
+                        <option key={t} value={t}>
+                          {t}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <Select
+                      value={editTime || undefined}
+                      onValueChange={(value) => setEditTime(value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Auswählen..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {timeSlots.map((t) => (
+                          <SelectItem key={t} value={t}>
+                            {t}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
                   <p className="text-xs text-muted-foreground mt-2 leading-relaxed">
                     Dauer (auto): <strong>{Math.max(1, editDurationSlots) * 30} min</strong>
                   </p>

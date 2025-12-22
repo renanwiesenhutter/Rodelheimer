@@ -61,7 +61,7 @@ const AppointmentsList = ({
                 </span>
 
                 <span className="text-xs text-muted-foreground">
-                  ({Math.max(1, a.duration_slots ?? 1) * 30} min)
+                  ({a.duration_minutes ?? Math.max(1, a.duration_slots ?? 1) * 30} min)
                 </span>
               </div>
 

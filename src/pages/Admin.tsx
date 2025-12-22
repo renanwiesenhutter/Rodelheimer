@@ -5,6 +5,8 @@ import { useToast } from '@/hooks/use-toast';
 import type { Session, User as SupabaseUser } from '@supabase/supabase-js';
 import AdminHeader from '@/components/admin/AdminHeader';
 import AppointmentsSection from '@/components/admin/AppointmentsSection';
+import ServicesSection from '@/components/admin/ServicesSection';
+import BarbersSection from '@/components/admin/BarbersSection';
 import EditAppointmentModal from '@/components/admin/EditAppointmentModal';
 import { timeSlots } from '@/components/admin/constants';
 import { toDateKey, getRequiredSlots } from '@/components/admin/utils';
@@ -43,6 +45,9 @@ const Admin = () => {
 
   // scroll pro agendamento clicado no grid
   const [highlightId, setHighlightId] = useState<string | null>(null);
+
+  // seção ativa
+  const [activeSection, setActiveSection] = useState<'agendamentos' | 'servicos' | 'barbeiros'>('agendamentos');
 
   /* =========================
      AUTH + ADMIN CHECK
@@ -102,7 +107,11 @@ const Admin = () => {
   ========================= */
   const fetchBarbers = async () => {
     setBarbersLoading(true);
-    const { data, error } = await supabase.from('barbers').select('id,name');
+    const { data, error } = await supabase
+      .from('barbers')
+      .select('id,name,photo_url,display_order')
+      .order('display_order', { ascending: true })
+      .order('name', { ascending: true });
     setBarbersLoading(false);
 
     if (error) {
@@ -227,6 +236,7 @@ const Admin = () => {
       date: selectedDateKey,
       time,
       duration_slots: 1,
+      duration_minutes: 30,
       status: 'blocked',
       name: 'Gesperrt',
       phone: '-',
@@ -326,6 +336,7 @@ const Admin = () => {
     date: string;
     time: string;
     duration_slots: number;
+    duration_minutes?: number | null;
     name: string | null;
     phone: string | null;
   }) => {
@@ -384,6 +395,18 @@ const Admin = () => {
       throw new Error('Conflito de horário');
     }
 
+    // Buscar o serviço para obter duration_minutes
+    let durationMinutes = data.duration_minutes;
+    if (!durationMinutes) {
+      const { data: serviceData } = await supabase
+        .from('services')
+        .select('duration_minutes, duration_slots')
+        .eq('name', data.service)
+        .single();
+      
+      durationMinutes = serviceData?.duration_minutes ?? (serviceData?.duration_slots ?? 1) * 30;
+    }
+
     const { error: updErr } = await supabase
       .from('appointments')
       .update({
@@ -392,6 +415,7 @@ const Admin = () => {
         date: data.date,
         time: data.time,
         duration_slots: Math.max(1, data.duration_slots),
+        duration_minutes: durationMinutes,
         name: data.name || null,
         phone: data.phone || null,
       })
@@ -429,26 +453,32 @@ const Admin = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <AdminHeader />
+      <AdminHeader activeSection={activeSection} onSectionChange={setActiveSection} />
 
       {/* Main */}
       <main className="section-padding bg-secondary pt-24">
         <div className="container-custom">
-          <AppointmentsSection
-            barbers={barbers}
-            selectedBarber={selectedBarber}
-            onBarberChange={setSelectedBarber}
-            barbersLoading={barbersLoading}
-            selectedDate={selectedDate}
-            onDateSelect={setSelectedDate}
-            appointments={dayAppointments}
-            appointmentsLoading={dayLoading}
-            highlightId={highlightId}
-            onSlotClick={handleSlotClick}
-            onEdit={openEdit}
-            onCancel={cancelAppointment}
-            onScrollTo={scrollToAppointment}
-          />
+          {activeSection === 'agendamentos' ? (
+            <AppointmentsSection
+              barbers={barbers}
+              selectedBarber={selectedBarber}
+              onBarberChange={setSelectedBarber}
+              barbersLoading={barbersLoading}
+              selectedDate={selectedDate}
+              onDateSelect={setSelectedDate}
+              appointments={dayAppointments}
+              appointmentsLoading={dayLoading}
+              highlightId={highlightId}
+              onSlotClick={handleSlotClick}
+              onEdit={openEdit}
+              onCancel={cancelAppointment}
+              onScrollTo={scrollToAppointment}
+            />
+          ) : activeSection === 'servicos' ? (
+            <ServicesSection />
+          ) : (
+            <BarbersSection />
+          )}
         </div>
       </main>
 

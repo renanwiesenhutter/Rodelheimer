@@ -27,21 +27,15 @@ const BARBERS_CACHE_KEY = 'rhb_barbers_cache_v1';
 const BARBERS_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 
 /* =========================
-   SERVICES + DURATION (slots de 30min)
+   SERVICE TYPE
 ========================= */
-const services = [
-  { name: 'Maschinenschnitt', price: '12€', durationSlots: 1 },
-  { name: 'Bartrasur', price: '12€', durationSlots: 1 },
-  { name: 'Augenbrauen zupfen', price: '7€', durationSlots: 1 },
-
-  { name: 'Kurzhaarschnitte für Damen', price: '18€', durationSlots: 1 },
-  { name: 'Schüler bis 16 Jahre', price: '16€', durationSlots: 1 },
-
-  { name: 'Maschinenschnitt + Bartrasur', price: '24€', durationSlots: 2 },
-  { name: 'Maschinenschnitt + Augenbrauen zupfen', price: '19€', durationSlots: 2 },
-  { name: 'Bartrasur + Augenbrauen zupfen', price: '19€', durationSlots: 2 },
-  { name: 'Maschinenschnitt + Bartrasur + Augenbrauen zupfen', price: '31€', durationSlots: 3 },
-];
+type Service = {
+  id: string;
+  name: string;
+  price: string;
+  description?: string | null;
+  duration_slots: number;
+};
 
 const timeSlots = [
   '09:00', '09:30', '10:00', '10:30', '11:00', '11:30',
@@ -149,6 +143,9 @@ const BookingSection = () => {
   const [barbers, setBarbers] = useState<Barber[]>([]);
   const [barbersLoading, setBarbersLoading] = useState(false);
 
+  const [services, setServices] = useState<Service[]>([]);
+  const [servicesLoading, setServicesLoading] = useState(false);
+
   const [bookedSlots, setBookedSlots] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
@@ -165,11 +162,11 @@ const BookingSection = () => {
 
   const selectedServiceObj = useMemo(
     () => services.find((s) => s.name === selectedService),
-    [selectedService]
+    [services, selectedService]
   );
 
-  const selectedDurationSlots = selectedServiceObj?.durationSlots ?? 1;
-  const selectedDurationMinutes = selectedDurationSlots * 30;
+  const selectedDurationSlots = selectedServiceObj?.duration_slots ?? 1;
+  const selectedDurationMinutes = selectedServiceObj?.duration_minutes ?? selectedDurationSlots * 30;
 
   const selectedDateKey = useMemo(() => {
     if (!selectedDate) return '';
@@ -185,7 +182,9 @@ const BookingSection = () => {
 
     const { data, error } = await supabase
       .from('barbers')
-      .select('id,name');
+      .select('id,name,photo_url,display_order')
+      .order('display_order', { ascending: true })
+      .order('name', { ascending: true });
 
     if (!silent) setBarbersLoading(false);
 
@@ -228,6 +227,71 @@ const BookingSection = () => {
     fetchBarbers();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  /* =========================
+     FETCH SERVICES BY BARBER
+  ========================= */
+  const fetchServices = async (barberName: string) => {
+    if (!barberName) {
+      setServices([]);
+      return;
+    }
+
+    setServicesLoading(true);
+
+    // Find barber by name
+    const barber = barbers.find((b) => b.name === barberName);
+    if (!barber) {
+      setServices([]);
+      setServicesLoading(false);
+      return;
+    }
+
+    // Fetch services for this barber through barber_services
+    const { data, error } = await supabase
+      .from('barber_services')
+      .select('service_id, services(*)')
+      .eq('barber_id', barber.id)
+      .order('services(display_order)', { ascending: true })
+      .order('services(name)', { ascending: true });
+
+    setServicesLoading(false);
+
+    if (error) {
+      console.error('Error fetching services:', error);
+      setServices([]);
+      return;
+    }
+
+    if (data) {
+      const mapped = data
+        .map((item: any) => item.services)
+        .filter(Boolean) as Service[];
+      
+      // Sort by display_order, then by name
+      mapped.sort((a, b) => {
+        const orderA = a.display_order ?? 999999;
+        const orderB = b.display_order ?? 999999;
+        if (orderA !== orderB) {
+          return orderA - orderB;
+        }
+        return (a.name || '').localeCompare(b.name || '');
+      });
+      
+      setServices(mapped);
+    }
+  };
+
+  // Fetch services when barber is selected
+  useEffect(() => {
+    if (mode !== 'booking') return;
+    if (!selectedBarber) {
+      setServices([]);
+      return;
+    }
+    fetchServices(selectedBarber);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedBarber, barbers]);
 
   /* =========================
      BOOKED SLOTS
@@ -367,6 +431,7 @@ const BookingSection = () => {
         date: dateKey,
         time: selectedTime,
         duration_slots: selectedDurationSlots,
+        duration_minutes: selectedDurationMinutes,
         name: name.trim(),
         phone: toE164(phone), // ✅ sempre normaliza
         status: 'booked',
@@ -505,7 +570,7 @@ const BookingSection = () => {
     // tenta com E.164
     const q1 = await supabase
       .from('appointments')
-      .select('id, service, barber, date, time, duration_slots, status')
+      .select('id, service, barber, date, time, duration_slots, duration_minutes, status')
       .eq('phone', phoneE164)
       .eq('status', 'booked')
       .order('date', { ascending: true })
@@ -520,7 +585,7 @@ const BookingSection = () => {
     // fallback: sem +
     const q2 = await supabase
       .from('appointments')
-      .select('id, service, barber, date, time, duration_slots, status')
+      .select('id, service, barber, date, time, duration_slots, duration_minutes, status')
       .eq('phone', phoneDigits)
       .eq('status', 'booked')
       .order('date', { ascending: true })
@@ -778,7 +843,7 @@ const BookingSection = () => {
                             {typeof a.duration_slots === 'number' && (
                               <p className="text-sm text-muted-foreground flex items-center gap-2 mt-1">
                                 <Clock className="w-4 h-4" />
-                                {a.duration_slots * 30} Min
+                                {a.duration_minutes ?? (a.duration_slots ?? 1) * 30} Min
                               </p>
                             )}
                           </div>
@@ -891,65 +956,11 @@ const BookingSection = () => {
                 </div>
               )}
 
-              {/* STEP 2 */}
+              {/* STEP 2 - Selecionar Barbeiro */}
               {step === 2 && (
                 <div className="animate-fade-in">
                   <button
                     onClick={() => setStep(1)}
-                    className="flex items-center gap-2 text-muted-foreground hover:text-foreground mb-6 transition-colors"
-                  >
-                    <ArrowLeft className="w-4 h-4" /> Zurück
-                  </button>
-
-                  <h3 className="text-xl font-bold mb-6 text-center">
-                    Service auswählen
-                  </h3>
-
-                  <div className="grid md:grid-cols-2 gap-4">
-                    {services.map((service) => (
-                      <button
-                        key={service.name}
-                        onClick={() => {
-                          setSelectedService(service.name);
-                          setSelectedBarber('');
-                          setSelectedDate(undefined);
-                          setSelectedTime('');
-                          setBookedSlots([]);
-                          setStep(3);
-                        }}
-                        className="
-                        border border-border p-4 rounded-lg text-left
-                        transition-colors md:transition-all
-                        md:hover:border-primary
-
-                        active:border-primary active:bg-primary/5
-                        touch-manipulation
-                      "
-                      >
-                        <div className="flex justify-between items-center">
-                          <span className="text-foreground font-medium">
-                            {service.name}
-                          </span>
-                          <strong className="text-foreground">
-                            {service.price}
-                          </strong>
-                        </div>
-
-                        <div className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
-                          <Clock className="w-4 h-4" />
-                          {service.durationSlots * 30} Min
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* STEP 3 */}
-              {step === 3 && (
-                <div className="animate-fade-in">
-                  <button
-                    onClick={() => setStep(2)}
                     className="flex items-center gap-2 text-muted-foreground hover:text-foreground mb-6 transition-colors"
                   >
                     <ArrowLeft className="w-4 h-4" /> Zurück
@@ -971,10 +982,11 @@ const BookingSection = () => {
                           onClick={(e) => {
                             (e.currentTarget as HTMLButtonElement).blur();
                             setSelectedBarber(barber.name);
+                            setSelectedService('');
                             setSelectedDate(undefined);
                             setSelectedTime('');
                             setBookedSlots([]);
-                            setStep(4);
+                            setStep(3);
                           }}
                           className={`
                             p-6 rounded-lg border-2 text-center
@@ -983,10 +995,79 @@ const BookingSection = () => {
                             ${selectedBarber === barber.name ? 'border-primary bg-primary/5' : 'border-border bg-card'}
                           `}
                         >
-                          <div className="w-16 h-16 bg-primary rounded-full flex items-center justify-center mx-auto mb-4">
-                            <User className="w-8 h-8 text-primary-foreground" />
+                          <div className="w-16 h-16 rounded-full overflow-hidden bg-primary flex items-center justify-center mx-auto mb-4">
+                            {barber.photo_url ? (
+                              <img
+                                src={barber.photo_url}
+                                alt={barber.name}
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <User className="w-8 h-8 text-primary-foreground" />
+                            )}
                           </div>
                           <span className="font-display text-lg font-semibold">{barber.name}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* STEP 3 - Selecionar Serviço */}
+              {step === 3 && (
+                <div className="animate-fade-in">
+                  <button
+                    onClick={() => setStep(2)}
+                    className="flex items-center gap-2 text-muted-foreground hover:text-foreground mb-6 transition-colors"
+                  >
+                    <ArrowLeft className="w-4 h-4" /> Zurück
+                  </button>
+
+                  <h3 className="text-xl font-bold mb-6 text-center">
+                    Service auswählen
+                  </h3>
+
+                  {servicesLoading ? (
+                    <div className="text-center text-muted-foreground py-8">Lädt...</div>
+                  ) : services.length === 0 ? (
+                    <div className="text-center text-muted-foreground py-8">
+                      Keine Dienstleistungen für diesen Barbier verfügbar.
+                    </div>
+                  ) : (
+                    <div className="grid md:grid-cols-2 gap-4">
+                      {services.map((service) => (
+                        <button
+                          key={service.id}
+                          onClick={() => {
+                            setSelectedService(service.name);
+                            setSelectedDate(undefined);
+                            setSelectedTime('');
+                            setBookedSlots([]);
+                            setStep(4);
+                          }}
+                          className="
+                          border border-border p-4 rounded-lg text-left
+                          transition-colors md:transition-all
+                          md:hover:border-primary
+
+                          active:border-primary active:bg-primary/5
+                          touch-manipulation
+                        "
+                        >
+                          <div className="flex justify-between items-center">
+                            <span className="text-foreground font-medium">
+                              {service.name}
+                            </span>
+                            <strong className="text-foreground">
+                              {service.price}
+                            </strong>
+                          </div>
+
+                          <div className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
+                            <Clock className="w-4 h-4" />
+                            {service.duration_minutes ?? service.duration_slots * 30} Min
+                          </div>
                         </button>
                       ))}
                     </div>

@@ -1,41 +1,35 @@
+import { useState, useEffect } from 'react';
 import { Scissors, Clock } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-
-const services = [
-  { 
-    name: 'Maschinenschnitt', 
-    price: '12€', 
-    description: 'Haarschnitt mit der Haarschneidemaschine, schnell und glatt',
-    time: '~30 min'
-  },
-  { 
-    name: 'Bartrasur', 
-    price: '12€', 
-    description: 'Bart trimmen und in Form bringen',
-    time: '~30 min'
-  },
-  { 
-    name: 'Augenbrauen zupfen', 
-    price: '7€', 
-    description: 'Augenbrauen schneiden und formen',
-    time: '~30 min'
-  },
-  { 
-    name: 'Kurzhaarschnitte für Damen', 
-    price: '18€', 
-    description: 'Kurzer Damenhaarschnitt',
-    time: '~30 min'
-  },
-  { 
-    name: 'Schüler bis 16 Jahre', 
-    price: '14€', 
-    description: 'Haarschnitte für Schüler bis 16 Jahre, jeden Mittwoch',
-    time: '~30 min'
-  },
-];
+import { supabase } from '@/integrations/supabase/client';
+import type { Service } from '@/components/admin/types';
 
 const ServicesSection = () => {
   const navigate = useNavigate();
+  const [services, setServices] = useState<Service[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchServices();
+  }, []);
+
+  const fetchServices = async () => {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from('services')
+      .select('*')
+      .eq('is_combined', false)
+      .order('display_order', { ascending: true })
+      .order('name', { ascending: true });
+
+    if (error) {
+      console.error('Error fetching services:', error);
+      setServices([]);
+    } else {
+      setServices((data ?? []) as Service[]);
+    }
+    setLoading(false);
+  };
 
   return (
     <section id="services" className="section-padding bg-secondary">
@@ -52,37 +46,47 @@ const ServicesSection = () => {
         </div>
 
         {/* Services Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {services.map((service, index) => (
-            <div
-              key={service.name}
-              className="group bg-card border border-border rounded-lg p-6 card-hover"
-              style={{ animationDelay: `${index * 0.1}s` }}
-            >
-              <div className="flex items-start justify-between mb-4">
-                <div className="p-3 bg-primary rounded-lg">
-                  <Scissors className="w-5 h-5 text-primary-foreground" />
+        {loading ? (
+          <div className="text-center text-muted-foreground py-12">Lädt...</div>
+        ) : services.length === 0 ? (
+          <div className="text-center text-muted-foreground py-12">
+            Keine Dienstleistungen verfügbar.
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {services.map((service, index) => (
+              <div
+                key={service.id}
+                className="group bg-card border border-border rounded-lg p-6 card-hover"
+                style={{ animationDelay: `${index * 0.1}s` }}
+              >
+                <div className="flex items-start justify-between mb-4">
+                  <div className="p-3 bg-primary rounded-lg">
+                    <Scissors className="w-5 h-5 text-primary-foreground" />
+                  </div>
+                  <span className="font-display text-2xl font-bold text-foreground">
+                    {service.price}
+                  </span>
                 </div>
-                <span className="font-display text-2xl font-bold text-foreground">
-                  {service.price}
-                </span>
+                
+                <h3 className="font-display text-xl font-semibold text-foreground mb-2">
+                  {service.name}
+                </h3>
+                
+                {service.description && (
+                  <p className="text-muted-foreground text-sm font-body">
+                    {service.description}
+                  </p>
+                )}
+                
+                <div className="flex items-center gap-2 mt-4 text-muted-foreground text-xs">
+                  <Clock className="w-4 h-4" />
+                  <span>~{service.duration_minutes ?? service.duration_slots * 30} min</span>
+                </div>
               </div>
-              
-              <h3 className="font-display text-xl font-semibold text-foreground mb-2">
-                {service.name}
-              </h3>
-              
-              <p className="text-muted-foreground text-sm font-body">
-                {service.description}
-              </p>
-              
-              <div className="flex items-center gap-2 mt-4 text-muted-foreground text-xs">
-                <Clock className="w-4 h-4" />
-                <span>{service.time}</span>
-              </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
 
         {/* CTA Button */}
         <div className="flex justify-center mt-16">

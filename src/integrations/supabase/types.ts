@@ -53,18 +53,24 @@ export type Database = {
           id: string
           name: string
           services: string[]
+          photo_url?: string | null
+          display_order?: number | null
         }
         Insert: {
           created_at?: string
           id?: string
           name: string
           services: string[]
+          photo_url?: string | null
+          display_order?: number | null
         }
         Update: {
           created_at?: string
           id?: string
           name?: string
           services?: string[]
+          photo_url?: string | null
+          display_order?: number | null
         }
         Relationships: []
       }

@@ -2,21 +2,31 @@ import { useState } from 'react';
 import { Menu, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
-const AdminHeader = () => {
+interface AdminHeaderProps {
+  activeSection?: 'agendamentos' | 'servicos' | 'barbeiros';
+  onSectionChange?: (section: 'agendamentos' | 'servicos' | 'barbeiros') => void;
+}
+
+const AdminHeader = ({ activeSection = 'agendamentos', onSectionChange }: AdminHeaderProps) => {
   const navigate = useNavigate();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  const scrollToSection = (sectionId: string) => {
-    const element = document.getElementById(sectionId);
-    if (element) {
-      element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  const handleSectionClick = (sectionId: string) => {
+    if (onSectionChange && (sectionId === 'agendamentos' || sectionId === 'servicos' || sectionId === 'barbeiros')) {
+      onSectionChange(sectionId as 'agendamentos' | 'servicos' | 'barbeiros');
+    } else {
+      const element = document.getElementById(sectionId);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
     }
     setIsMobileMenuOpen(false);
   };
 
   const navSections = [
     { id: 'agendamentos', label: 'Termine' },
-    // Adicione mais seções aqui no futuro
+    { id: 'servicos', label: 'Dienstleistungen' },
+    { id: 'barbeiros', label: 'Barbiere' },
   ];
 
   return (
@@ -46,8 +56,12 @@ const AdminHeader = () => {
             {navSections.map((section) => (
               <button
                 key={section.id}
-                onClick={() => scrollToSection(section.id)}
-                className="text-sm font-medium text-foreground/80 hover:text-foreground transition-colors"
+                onClick={() => handleSectionClick(section.id)}
+                className={`text-sm font-medium transition-colors ${
+                  activeSection === section.id
+                    ? 'text-foreground'
+                    : 'text-foreground/80 hover:text-foreground'
+                }`}
               >
                 {section.label}
               </button>
@@ -76,8 +90,12 @@ const AdminHeader = () => {
             {navSections.map((section) => (
               <button
                 key={section.id}
-                onClick={() => scrollToSection(section.id)}
-                className="block w-full text-left px-4 py-3 text-foreground/80 hover:text-foreground hover:bg-secondary transition-colors"
+                onClick={() => handleSectionClick(section.id)}
+                className={`block w-full text-left px-4 py-3 transition-colors ${
+                  activeSection === section.id
+                    ? 'text-foreground bg-secondary'
+                    : 'text-foreground/80 hover:text-foreground hover:bg-secondary'
+                }`}
               >
                 {section.label}
               </button>
